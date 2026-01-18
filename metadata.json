@@ -1,0 +1,7 @@
+{
+  "name": "Spare Parts Finder  Marketplace",
+  "description": "A comprehensive marketplace for auto parts where sellers can manage stock and buyers can browse, enquire, and purchase parts online.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
