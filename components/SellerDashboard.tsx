@@ -23,6 +23,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -66,35 +67,34 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const handleEditClick = (product: Product) => {
     setEditingProduct(product);
     setFormData(product);
+    setFormError(null);
     setShowModal(true);
   };
 
   const handleAddClick = () => {
     setEditingProduct(null);
     setFormData(initialFormState);
+    setFormError(null);
     setShowModal(true);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const simulatedUrl = `https://picsum.photos/seed/${Math.random()}/800/600`;
+      const newImages = Array.from(files).map(file => URL.createObjectURL(file));
       setFormData(prev => ({
         ...prev,
-        images: [...(prev.images || []), simulatedUrl]
+        images: [...(prev.images || []), ...newImages]
       }));
+      setFormError(null); // Clear error when images are added
     }
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        setProfileForm(prev => ({ ...prev, logoUrl: result }));
-      };
-      reader.readAsDataURL(files[0]);
+      const url = URL.createObjectURL(files[0]);
+      setProfileForm(prev => ({ ...prev, logoUrl: url }));
     }
   };
 
@@ -108,6 +108,13 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // VALIDATION: Enforce mandatory image upload
+    if (!formData.images || formData.images.length === 0) {
+      setFormError("At least one image is required to publish a listing.");
+      return;
+    }
+
     const finalSKU = formData.sku && formData.sku.trim() !== '' 
       ? formData.sku 
       : generateSKU(formData.make || '');
@@ -131,7 +138,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     <div className="max-w-7xl mx-auto px-4 py-8 text-slate-800">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
-          <h1 className="text-4xl font-display font-black text-dark tracking-tight">Seller Console</h1>
+          <h1 className="text-4xl font-display font-black text-dark tracking-tight italic">Seller Console</h1>
           <p className="text-slate-500 font-medium">Monitoring <span className="text-primary font-bold">{profile?.businessName || 'Business Hub'}</span> performance</p>
         </div>
         <div className="flex gap-3">
@@ -341,7 +348,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
             {activeTab === 'profile' && (
               <div className="p-10 animate-in fade-in duration-500">
-                {/* Profile implementation omitted for brevity, keeping same as before */}
                 <div className="flex items-center justify-between mb-10 pb-10 border-b border-slate-100">
                   <div className="flex items-center gap-8">
                     <div className="relative group">
@@ -503,8 +509,11 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
             
             <form onSubmit={handleSubmit} className="space-y-8">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Media Library</label>
-                <div className="flex flex-wrap gap-4">
+                <div className="flex justify-between items-center mb-4">
+                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Media Library (Required)</label>
+                   {formError && <span className="text-[10px] font-black text-accent uppercase animate-pulse">{formError}</span>}
+                </div>
+                <div className={`flex flex-wrap gap-4 p-4 rounded-3xl transition-colors ${formError ? 'bg-red-50 border-2 border-dashed border-accent' : 'bg-slate-50/50 border-2 border-transparent'}`}>
                    {formData.images?.map((url, idx) => (
                       <div key={idx} className="relative w-28 h-28 rounded-3xl overflow-hidden border border-slate-100 shadow-sm">
                          <img src={url} className="w-full h-full object-cover" alt="" />
@@ -520,7 +529,9 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                    <button 
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-28 h-28 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center text-slate-400 hover:border-primary hover:text-primary transition-all bg-slate-50/50"
+                    className={`w-28 h-28 border-2 border-dashed rounded-3xl flex flex-col items-center justify-center transition-all ${
+                        formError ? 'border-accent text-accent' : 'border-slate-200 text-slate-400 hover:border-primary hover:text-primary'
+                    }`}
                    >
                      <span className="material-symbols-outlined text-3xl">add_a_photo</span>
                      <span className="text-[9px] font-black uppercase mt-2 tracking-widest">Add Media</span>

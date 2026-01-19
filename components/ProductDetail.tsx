@@ -6,12 +6,16 @@ interface ProductDetailProps {
   product: Product;
   sellerPhone?: string;
   onAddToCart: (p: Product) => void;
-  onEnquire: (enquiry: any) => void;
+  // Updated to accept the second optional boolean argument for showAlert
+  onEnquire: (enquiry: any, showAlert?: boolean) => void;
 }
 
 export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPhone, onAddToCart, onEnquire }) => {
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showEnquiryForm, setShowEnquiryForm] = useState(false);
-  const [showSellerDetails, setShowSellerDetails] = useState(false);
+  const [showFullGallery, setShowFullGallery] = useState(false);
+  const [zoomPos, setZoomPos] = useState({ x: 0, y: 0, show: false });
+  
   const [enquiryData, setEnquiryData] = useState({
     buyerName: '',
     buyerPhone: '',
@@ -25,7 +29,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
     const phone = sellerPhone || '27123456789';
     const messageText = `Hi, I'm interested in your part: ${product.name} (R${product.price}). Is it still available?`;
     
-    // Automatically count as a new lead by sending a specific enquiry type
+    // This call now matches the updated onEnquire prop signature
     onEnquire({
       buyerName: 'WhatsApp Visitor',
       buyerPhone: 'Direct Link',
@@ -34,7 +38,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
       sellerId: product.sellerId,
       message: '[WHATSAPP LEAD] User initiated WhatsApp conversation for: ' + product.name,
       status: 'New'
-    });
+    }, false);
 
     const encodedMsg = encodeURIComponent(messageText);
     window.open(`https://wa.me/${phone}?text=${encodedMsg}`, '_blank');
@@ -52,21 +56,81 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
     setShowEnquiryForm(false);
   };
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.pageX - left - window.scrollX) / width) * 100;
+    const y = ((e.pageY - top - window.scrollY) / height) * 100;
+    setZoomPos({ x, y, show: true });
+  };
+
+  const nextImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedImageIndex((prev) => (prev + 1) % product.images.length);
+  };
+
+  const prevImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Left: Images */}
+        {/* Left: Images Carousel */}
         <div className="space-y-4">
-          <div className="aspect-square bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200">
-            <img 
-              src={product.images[0]} 
-              alt={product.name} 
-              className="w-full h-full object-cover"
-            />
+          <div 
+            className="relative aspect-square bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-200 group"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setZoomPos({ ...zoomPos, show: false })}
+          >
+            <div 
+              className="w-full h-full cursor-zoom-in"
+              onClick={() => setShowFullGallery(true)}
+            >
+              <img 
+                src={product.images[selectedImageIndex]} 
+                alt={product.name} 
+                className={`w-full h-full object-cover transition-transform duration-200 ${zoomPos.show ? 'scale-150' : 'scale-100'}`}
+                style={zoomPos.show ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` } : undefined}
+              />
+            </div>
+
+            {/* Carousel Navigation Arrows */}
+            {product.images.length > 1 && (
+              <>
+                <button 
+                  onClick={prevImage}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full text-dark shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                >
+                  <span className="material-symbols-outlined">chevron_left</span>
+                </button>
+                <button 
+                  onClick={nextImage}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full text-dark shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                >
+                  <span className="material-symbols-outlined">chevron_right</span>
+                </button>
+              </>
+            )}
+
+            {/* Fullscreen indicator */}
+            {!zoomPos.show && (
+              <div className="absolute bottom-4 right-4 bg-dark/50 text-white p-2 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <span className="material-symbols-outlined">fullscreen</span>
+              </div>
+            )}
           </div>
-          <div className="grid grid-cols-4 gap-4">
+          
+          {/* Thumbnails */}
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
             {product.images.map((img, i) => (
-              <div key={i} className="aspect-square rounded-lg overflow-hidden border border-slate-200 cursor-pointer hover:border-primary transition-colors">
+              <div 
+                key={i} 
+                onClick={() => setSelectedImageIndex(i)}
+                className={`flex-shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-4 transition-all cursor-pointer ${
+                  selectedImageIndex === i ? 'border-primary shadow-md scale-105' : 'border-white hover:border-slate-200'
+                }`}
+              >
                 <img src={img} className="w-full h-full object-cover" alt="" />
               </div>
             ))}
@@ -81,158 +145,126 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
               <span>/</span>
               <span className="text-primary">{product.category}</span>
             </nav>
-            <h1 className="text-3xl font-display font-bold text-dark mb-2">{product.name}</h1>
+            <h1 className="text-4xl font-display font-black text-dark mb-2 tracking-tight leading-tight">{product.name}</h1>
             <div className="flex items-center gap-4">
               <span className="text-3xl font-display font-extrabold text-primary">
                 R {product.price.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
               </span>
-              <span className={`px-3 py-1 rounded text-xs font-bold uppercase tracking-wider ${
-                product.condition === 'New' ? 'bg-blue-100 text-blue-700' : 
-                product.condition === 'Damaged/Salvage' ? 'bg-red-100 text-accent' :
-                'bg-slate-100 text-slate-700'
+              <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] shadow-sm ${
+                product.condition === 'New' ? 'bg-blue-600 text-white' : 
+                product.condition === 'Damaged/Salvage' ? 'bg-accent text-white' :
+                'bg-slate-800 text-white'
               }`}>
                 {product.condition}
               </span>
             </div>
           </div>
 
-          <div className={`grid ${product.isVehicle ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'} gap-6 py-6 border-y border-slate-100`}>
+          <div className={`grid ${product.isVehicle ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'} gap-6 py-8 border-y border-slate-100`}>
             <div>
-              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Make / Model</p>
-              <p className="text-slate-900 font-bold">{product.make} {product.model}</p>
+              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5">Manufacturer</p>
+              <p className="text-slate-900 font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg text-primary">directions_car</span>
+                {product.make}
+              </p>
             </div>
             <div>
-              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Year</p>
-              <p className="text-slate-900 font-bold">{product.yearStart}</p>
+              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5">Compatibility</p>
+              <p className="text-slate-900 font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined text-lg text-primary">calendar_today</span>
+                {product.yearStart}{product.yearEnd !== product.yearStart ? ` - ${product.yearEnd}` : ''}
+              </p>
             </div>
-            {product.isVehicle && (
-                <>
-                    <div>
-                        <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Mileage</p>
-                        <p className="text-slate-900 font-bold">{product.mileage?.toLocaleString()} km</p>
-                    </div>
-                    <div>
-                        <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Trans.</p>
-                        <p className="text-slate-900 font-bold">{product.transmission}</p>
-                    </div>
-                </>
-            )}
           </div>
 
           <div className="prose prose-slate prose-sm max-w-none">
-            <h3 className="text-dark font-bold text-lg mb-2">Description / Damage Details</h3>
-            <p className="text-slate-600 leading-relaxed whitespace-pre-line">{product.description}</p>
+            <h3 className="text-dark font-black text-xs uppercase tracking-widest mb-3 opacity-50">Detailed description</h3>
+            <p className="text-slate-600 leading-relaxed whitespace-pre-line text-base font-medium">{product.description}</p>
           </div>
 
-          <div className="flex flex-col gap-3 pt-4">
+          <div className="flex flex-col gap-4 pt-6">
             <button 
               onClick={handleWhatsAppClick}
-              className="w-full bg-[#25D366] text-white h-14 rounded-xl font-bold flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-lg"
+              disabled={isOutOfStock}
+              className="w-full bg-[#25D366] text-white h-16 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:shadow-xl hover:shadow-[#25D366]/20 transition-all active:scale-95 shadow-lg disabled:opacity-50"
             >
-              <span className="material-symbols-outlined">chat</span>
+              <span className="material-symbols-outlined text-2xl">chat</span>
               WhatsApp Seller
             </button>
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                disabled={isOutOfStock}
-                onClick={() => onAddToCart(product)}
-                className="bg-primary text-white h-14 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined">shopping_cart</span>
-                Buy Now
-              </button>
-              <button 
-                onClick={() => setShowEnquiryForm(true)}
-                className="bg-white text-dark border-2 border-slate-200 h-14 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-all"
-              >
-                <span className="material-symbols-outlined">mail</span>
-                Email Us
-              </button>
-            </div>
-            
             <button 
-              onClick={() => setShowSellerDetails(true)}
-              className="w-full bg-dark text-white h-14 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-slate-800 transition-all"
+              onClick={() => setShowEnquiryForm(true)}
+              disabled={isOutOfStock}
+              className="w-full bg-white text-dark border-2 border-slate-200 h-16 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50"
             >
-              <span className="material-symbols-outlined">person</span>
-              Contact Seller Details
+              <span className="material-symbols-outlined text-2xl">mail</span>
+              Send Email Enquiry
             </button>
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-accent">
-                <span className="material-symbols-outlined text-3xl">verified_user</span>
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Seller Location</p>
-                <p className="font-bold text-dark">{product.location}</p>
-              </div>
-            </div>
+            {isOutOfStock && (
+              <p className="text-center text-accent font-black uppercase tracking-widest text-xs">Currently Out of Stock</p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Seller Details Modal */}
-      {showSellerDetails && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-dark/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
-            <div className="p-6 bg-dark text-white flex justify-between items-center">
-              <h2 className="text-xl font-display font-bold">Seller Information</h2>
-              <button onClick={() => setShowSellerDetails(false)} className="hover:opacity-70">
-                <span className="material-symbols-outlined">close</span>
-              </button>
+      {/* Full Screen Gallery Modal / Carousel */}
+      {showFullGallery && (
+        <div 
+          className="fixed inset-0 z-[200] bg-dark/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 sm:p-8 animate-in fade-in duration-300"
+          onClick={() => setShowFullGallery(false)}
+        >
+          <button 
+            onClick={() => setShowFullGallery(false)}
+            className="absolute top-6 right-6 text-white bg-white/10 p-3 rounded-full hover:bg-white/20 transition-colors z-[210]"
+          >
+            <span className="material-symbols-outlined text-3xl">close</span>
+          </button>
+          
+          <div className="w-full max-w-6xl flex-1 flex flex-col items-center justify-center gap-8 relative" onClick={e => e.stopPropagation()}>
+            {/* Main Carousel Image */}
+            <div className="w-full h-full max-h-[70vh] flex items-center justify-center relative">
+              <img 
+                src={product.images[selectedImageIndex]} 
+                className="max-w-full max-h-full object-contain shadow-2xl rounded-lg animate-in zoom-in-95 duration-300" 
+                alt={`${product.name} view ${selectedImageIndex + 1}`} 
+              />
+              
+              {/* Overlay Navigation */}
+              {product.images.length > 1 && (
+                <>
+                  <button 
+                    onClick={prevImage}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-4 rounded-full text-white backdrop-blur-md transition-all active:scale-90"
+                  >
+                    <span className="material-symbols-outlined text-4xl">chevron_left</span>
+                  </button>
+                  <button 
+                    onClick={nextImage}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 p-4 rounded-full text-white backdrop-blur-md transition-all active:scale-90"
+                  >
+                    <span className="material-symbols-outlined text-4xl">chevron_right</span>
+                  </button>
+                </>
+              )}
             </div>
-            <div className="p-8 space-y-6">
-              <div className="flex flex-col items-center text-center space-y-3">
-                <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center">
-                  <span className="material-symbols-outlined text-4xl">store</span>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Business Name</p>
-                  <h3 className="text-2xl font-display font-bold text-dark">Verified Parts Supplier</h3>
-                </div>
-              </div>
 
-              <div className="space-y-4 pt-4 border-t border-slate-100">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
-                    <span className="material-symbols-outlined">person</span>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Contact Person</p>
-                    <p className="font-bold text-dark">Sales Manager</p>
-                  </div>
+            {/* Bottom Thumbnails Strip */}
+            <div className="w-full overflow-x-auto pb-4 px-4 flex justify-center gap-3">
+              {product.images.map((img, i) => (
+                <div 
+                  key={i} 
+                  onClick={() => setSelectedImageIndex(i)}
+                  className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                    selectedImageIndex === i ? 'border-primary scale-110' : 'border-white/10 hover:border-white/30'
+                  }`}
+                >
+                  <img src={img} className="w-full h-full object-cover" alt="" />
                 </div>
-                
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined">call</span>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Phone Number</p>
-                    <p className="font-bold text-dark text-lg">+{sellerPhone || '27123456789'}</p>
-                  </div>
-                </div>
+              ))}
+            </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
-                    <span className="material-symbols-outlined">location_on</span>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Area</p>
-                    <p className="font-bold text-dark">{product.location}</p>
-                  </div>
-                </div>
-              </div>
-
-              <a 
-                href={`tel:${sellerPhone || '27123456789'}`}
-                className="w-full bg-primary text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
-              >
-                <span className="material-symbols-outlined text-xl">call</span>
-                Call Seller Now
-              </a>
+            {/* Counter */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-white/10 px-4 py-1 rounded-full text-white/50 text-xs font-black tracking-widest uppercase">
+              {selectedImageIndex + 1} / {product.images.length}
             </div>
           </div>
         </div>
@@ -241,28 +273,28 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
       {/* Email Enquiry Modal */}
       {showEnquiryForm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-dark/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+          <div className="bg-white rounded-[2rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
             <div className="p-6 bg-primary text-white flex justify-between items-center">
               <h2 className="text-xl font-display font-bold">Email Enquiry</h2>
-              <button onClick={() => setShowEnquiryForm(false)} className="hover:opacity-70">
+              <button onClick={() => setShowEnquiryForm(false)} className="hover:opacity-70 p-2">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-            <form onSubmit={handleSubmitEnquiry} className="p-6 space-y-4">
+            <form onSubmit={handleSubmitEnquiry} className="p-8 space-y-6">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Your Name</label>
-                <input required type="text" className="w-full rounded-lg border-slate-200" value={enquiryData.buyerName} onChange={e => setEnquiryData({...enquiryData, buyerName: e.target.value})} />
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Your Full Name</label>
+                <input required type="text" className="w-full rounded-2xl border-slate-200 py-4 px-5 focus:ring-primary focus:border-primary font-bold" placeholder="e.g. John Smith" value={enquiryData.buyerName} onChange={e => setEnquiryData({...enquiryData, buyerName: e.target.value})} />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">WhatsApp / Phone</label>
-                <input required type="tel" className="w-full rounded-lg border-slate-200" value={enquiryData.buyerPhone} onChange={e => setEnquiryData({...enquiryData, buyerPhone: e.target.value})} />
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">WhatsApp / Phone</label>
+                <input required type="tel" className="w-full rounded-2xl border-slate-200 py-4 px-5 focus:ring-primary focus:border-primary font-bold" placeholder="e.g. 082 123 4567" value={enquiryData.buyerPhone} onChange={e => setEnquiryData({...enquiryData, buyerPhone: e.target.value})} />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Message</label>
-                <textarea required rows={4} className="w-full rounded-lg border-slate-200" value={enquiryData.message} onChange={e => setEnquiryData({...enquiryData, message: e.target.value})}></textarea>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Message</label>
+                <textarea required rows={4} className="w-full rounded-2xl border-slate-200 py-4 px-5 focus:ring-primary focus:border-primary font-medium" value={enquiryData.message} onChange={e => setEnquiryData({...enquiryData, message: e.target.value})}></textarea>
               </div>
-              <button type="submit" className="w-full bg-accent text-white py-4 rounded-xl font-bold shadow-lg hover:opacity-90">
-                Send Email
+              <button type="submit" className="w-full bg-accent text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl shadow-red-500/30 hover:opacity-90 transition-all active:scale-95">
+                Submit Enquiry
               </button>
             </form>
           </div>

@@ -26,26 +26,33 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Hero Section */}
-      <div className="mb-12 text-center">
-        <h1 className="text-4xl sm:text-5xl font-display font-extrabold text-dark mb-4">
-          Find any spare part, <span className="text-primary">instantly.</span>
-        </h1>
-        <p className="text-slate-500 max-w-2xl mx-auto mb-8 text-lg">
-          Search thousands of listings from verified local sellers across South Africa.
-        </p>
+      {/* Hero Section with Primary Blue Background */}
+      <div className="mb-12 bg-primary rounded-[3rem] p-10 sm:p-16 text-center shadow-2xl shadow-blue-900/20 relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute top-0 left-0 w-64 h-64 bg-white/5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-accent/10 rounded-full translate-x-1/3 translate-y-1/3 blur-3xl"></div>
         
-        <div className="max-w-3xl mx-auto relative group">
-          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400">
-            <span className="material-symbols-outlined">search</span>
+        <div className="relative z-10">
+          <h1 className="text-4xl sm:text-6xl font-display font-black text-white mb-6 tracking-tight leading-none">
+            Find Any Spare Part, <br/>
+            <span className="text-accent italic">Instantly.</span>
+          </h1>
+          <p className="text-blue-100 max-w-2xl mx-auto mb-10 text-lg font-medium">
+            Search thousands of listings from verified local sellers across South Africa.
+          </p>
+          
+          <div className="max-w-3xl mx-auto relative group">
+            <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-slate-400">
+              <span className="material-symbols-outlined text-2xl">search</span>
+            </div>
+            <input 
+              type="text"
+              className="w-full pl-14 pr-6 py-5 rounded-2xl border-none focus:ring-4 focus:ring-accent/30 transition-all shadow-2xl text-lg font-medium text-dark"
+              placeholder="Search by part name, car model, or SKU..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          <input 
-            type="text"
-            className="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-slate-200 focus:border-primary focus:ring-0 transition-all shadow-xl shadow-slate-200/50 text-lg"
-            placeholder="Search by part name, car model, or SKU..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
         </div>
       </div>
 
@@ -65,9 +72,9 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
         </div>
         <div className="relative z-10 w-full md:w-1/3 aspect-video rounded-2xl overflow-hidden shadow-2xl rotate-2">
             <img 
-              src="https://images.unsplash.com/photo-1599424423910-388915473760?auto=format&fit=crop&q=80&w=800" 
+              src="https://images.unsplash.com/photo-1536700503339-1e4b06520771?auto=format&fit=crop&q=80&w=800" 
               className="w-full h-full object-cover" 
-              alt="Damaged Car"
+              alt="Damaged Salvage Car"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-dark/60 to-transparent"></div>
         </div>
