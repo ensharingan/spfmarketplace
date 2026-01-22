@@ -39,10 +39,12 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
 
   // Comprehensive Filter logic
   const filteredProducts = products.filter(p => {
+    const searchLower = searchTerm.toLowerCase();
     const matchesSearch = searchTerm ? (
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      p.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+      p.name.toLowerCase().includes(searchLower) || 
+      p.description.toLowerCase().includes(searchLower) ||
+      p.sku.toLowerCase().includes(searchLower) ||
+      (p.vin && p.vin.toLowerCase().includes(searchLower))
     ) : true;
     
     const matchesMake = selectedMake ? p.make === selectedMake : true;
@@ -59,12 +61,6 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
     
     return matchesSearch && matchesMake && matchesModel && matchesYear && matchesCategory && isActive;
   });
-
-  // Instant catalog search (limited to name/category for speed)
-  const filteredSpareParts = SPARE_PARTS.filter(part => 
-    part.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    part.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const resetFilters = () => {
     setSearchTerm('');
@@ -98,12 +94,12 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
       <div className="relative z-20 -mt-10 mb-12 max-w-6xl mx-auto">
         <div className="bg-white rounded-3xl shadow-2xl shadow-dark/10 p-4 border border-slate-100">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-            {/* Keyword / Part Name */}
+            {/* Keyword / Part Name / VIN */}
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-lg">search</span>
               <input 
                 type="text" 
-                placeholder="Part (e.g. Radiator)" 
+                placeholder="Part Name or VIN" 
                 className="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary/20 font-bold text-xs text-dark placeholder:text-slate-400 placeholder:font-normal"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

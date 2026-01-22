@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Product, SellerProfile, Enquiry, Order, ListingStatus } from '../types';
 import { CATEGORIES, COMMON_PART_NAMES } from '../constants';
@@ -140,7 +141,8 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         }
       });
 
-      const result = JSON.parse(response.text || '{}');
+      const jsonStr = response.text || '{}';
+      const result = JSON.parse(jsonStr);
       if (result.make && result.model && result.year) {
         setFormData(prev => ({
           ...prev,
@@ -153,7 +155,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       }
     } catch (error) {
       console.error("VIN decoding failed:", error);
-      alert("Failed to decode VIN. Please enter details manually.");
+      alert("Failed to auto-decode VIN. Please check the VIN or enter details manually.");
     } finally {
       setIsDecodingVin(false);
     }
@@ -162,6 +164,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const activeListingsCount = products.filter(p => p.status === ListingStatus.ACTIVE).length;
   const newEnquiriesCount = enquiries.filter(e => e.status === 'New').length;
   const whatsappLeadsCount = enquiries.filter(e => e.message.includes('[WHATSAPP LEAD]')).length;
+  const emailLeadsCount = enquiries.length - whatsappLeadsCount;
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
 
   const generateSKU = (make: string) => {
@@ -401,7 +404,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-tighter">New Enquiries</p>
         </div>
 
-        {/* WhatsApp Leads Card - Enhanced for visibility */}
+        {/* WhatsApp Leads Card */}
         <div className="bg-[#25D366]/5 p-6 rounded-3xl border border-[#25D366]/20 shadow-sm transition-transform hover:-translate-y-1 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-[#25D366]/10 rounded-full translate-x-1/2 -translate-y-1/2 transition-transform group-hover:scale-125"></div>
           <div className="flex justify-between items-start mb-4 relative z-10">
@@ -524,9 +527,33 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
             {activeTab === 'enquiries' && (
               <div className="p-8 animate-in slide-in-from-right duration-500">
-                <div className="flex justify-between items-center mb-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                   <h3 className="font-black text-dark uppercase tracking-widest text-xs">Customer Inquiries</h3>
+                  
+                  {/* Additional Insight Card: Channel Breakdown */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex gap-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#25D366] text-white rounded-lg flex items-center justify-center shadow-sm">
+                        <span className="material-symbols-outlined text-lg">chat</span>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">WhatsApp</p>
+                        <p className="text-lg font-black text-dark leading-none">{whatsappLeadsCount}</p>
+                      </div>
+                    </div>
+                    <div className="w-px bg-slate-200"></div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center shadow-sm">
+                        <span className="material-symbols-outlined text-lg">mail</span>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Email</p>
+                        <p className="text-lg font-black text-dark leading-none">{emailLeadsCount}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
                 {enquiries.length === 0 ? (
                   <div className="py-20 text-center">
                     <span className="material-symbols-outlined text-6xl text-slate-200 mb-4">mail_lock</span>
@@ -558,43 +585,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                         </div>
                       </div>
                     ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'orders' && (
-              <div className="p-8 animate-in slide-in-from-right duration-500">
-                <div className="flex justify-between items-center mb-8">
-                  <h3 className="font-black text-dark uppercase tracking-widest text-xs">Sales History</h3>
-                </div>
-                {orders.length === 0 ? (
-                  <div className="py-20 text-center">
-                    <span className="material-symbols-outlined text-6xl text-slate-200 mb-4">receipt_long</span>
-                    <p className="font-bold text-slate-400">No completed orders yet</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="border-b border-slate-100">
-                          <th className="pb-4 text-[10px] font-black text-slate-400 uppercase">Order ID</th>
-                          <th className="pb-4 text-[10px] font-black text-slate-400 uppercase">Customer</th>
-                          <th className="pb-4 text-[10px] font-black text-slate-400 uppercase">Total</th>
-                          <th className="pb-4 text-[10px] font-black text-slate-400 uppercase text-right">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50">
-                        {orders.map(order => (
-                          <tr key={order.id}>
-                            <td className="py-4 font-bold text-sm text-primary">{order.id}</td>
-                            <td className="py-4 font-bold text-sm">{order.customerDetails.name}</td>
-                            <td className="py-4 font-black text-sm">R {order.total.toLocaleString()}</td>
-                            <td className="py-4 text-[10px] font-black text-slate-400 text-right">{new Date(order.createdAt).toLocaleDateString()}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
                   </div>
                 )}
               </div>
@@ -734,6 +724,43 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                          </p>
                       </div>
                     </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'orders' && (
+              <div className="p-8 animate-in slide-in-from-right duration-500">
+                <div className="flex justify-between items-center mb-8">
+                  <h3 className="font-black text-dark uppercase tracking-widest text-xs">Sales History</h3>
+                </div>
+                {orders.length === 0 ? (
+                  <div className="py-20 text-center">
+                    <span className="material-symbols-outlined text-6xl text-slate-200 mb-4">receipt_long</span>
+                    <p className="font-bold text-slate-400">No completed orders yet</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="border-b border-slate-100">
+                          <th className="pb-4 text-[10px] font-black text-slate-400 uppercase">Order ID</th>
+                          <th className="pb-4 text-[10px] font-black text-slate-400 uppercase">Customer</th>
+                          <th className="pb-4 text-[10px] font-black text-slate-400 uppercase">Total</th>
+                          <th className="pb-4 text-[10px] font-black text-slate-400 uppercase text-right">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {orders.map(order => (
+                          <tr key={order.id}>
+                            <td className="py-4 font-bold text-sm text-primary">{order.id}</td>
+                            <td className="py-4 font-bold text-sm">{order.customerDetails.name}</td>
+                            <td className="py-4 font-black text-sm">R {order.total.toLocaleString()}</td>
+                            <td className="py-4 text-[10px] font-black text-slate-400 text-right">{new Date(order.createdAt).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
