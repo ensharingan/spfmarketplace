@@ -15,7 +15,30 @@ export const CATEGORIES = [
   'Wheels & Tyres'
 ];
 
-export const MAKES = ['Toyota', 'BMW', 'Mercedes-Benz', 'Audi', 'Volkswagen', 'Ford', 'Honda', 'Nissan', 'Hyundai', 'Kia', 'Mazda'];
+export const SA_VEHICLE_DATA: Record<string, string[]> = {
+  'Toyota': ['Hilux', 'Corolla', 'Fortuner', 'Quantum', 'Avanza', 'Etios', 'Yaris', 'Starlet', 'Rumion', 'Urban Cruiser', 'Land Cruiser', 'Hiace'],
+  'Volkswagen': ['Polo', 'Polo Vivo', 'Golf', 'Tiguan', 'T-Cross', 'Amarok', 'Transporter', 'Caddy', 'T-Roc', 'Crafter'],
+  'Ford': ['Ranger', 'Everest', 'Figo', 'EcoSport', 'Fiesta', 'Transit', 'Tourneo', 'Mustang', 'F-150'],
+  'Nissan': ['NP200', 'NP300 Hardbody', 'Navara', 'Almera', 'Qashqai', 'X-Trail', 'Magnite', 'Patrol', 'NV350'],
+  'Hyundai': ['i10', 'i20', 'i30', 'Creta', 'Tucson', 'Santa Fe', 'H100 Bakkie', 'H1', 'Venue', 'Kona'],
+  'Kia': ['Picanto', 'Rio', 'Seltos', 'Sportage', 'Sorento', 'K2500', 'K2700', 'Sonet', 'Pegas'],
+  'BMW': ['1 Series', '2 Series', '3 Series', '4 Series', '5 Series', 'X1', 'X3', 'X5', 'X6', 'M3', 'M4', 'M5'],
+  'Mercedes-Benz': ['A-Class', 'C-Class', 'E-Class', 'S-Class', 'GLA', 'GLC', 'GLE', 'Sprinter', 'Vito', 'Actros'],
+  'Isuzu': ['D-MAX', 'KB Series', 'MU-X', 'N-Series Truck', 'F-Series Truck', 'FX-Series'],
+  'Suzuki': ['Swift', 'Jimny', 'Ertiga', 'Vitara Brezza', 'S-Presso', 'Celerio', 'Baleno', 'Dzire'],
+  'Mazda': ['Mazda2', 'Mazda3', 'CX-3', 'CX-5', 'CX-30', 'BT-50'],
+  'Renault': ['Kwid', 'Triber', 'Kiger', 'Captur', 'Duster', 'Megane', 'Clio'],
+  'Mitsubishi': ['Pajero', 'Triton', 'ASX', 'Outlander', 'Pajero Sport'],
+  'Mahindra': ['Scorpio', 'Thar', 'XUV300', 'Bolero', 'Pik-Up'],
+  'Haval': ['Jolion', 'H6', 'H6 GT'],
+  'GWM': ['Steed', 'P-Series'],
+  'Chery': ['Tiggo 4 Pro', 'Tiggo 7 Pro', 'Tiggo 8 Pro'],
+  'Audi': ['A1', 'A3', 'A4', 'A5', 'Q2', 'Q3', 'Q5', 'Q7'],
+  'Honda': ['Amaze', 'Ballade', 'Civic', 'CR-V', 'HR-V', 'Fit'],
+  'Land Rover': ['Defender', 'Discovery', 'Range Rover Sport', 'Range Rover Evoque']
+};
+
+export const MAKES = Object.keys(SA_VEHICLE_DATA).sort();
 
 export const COMMON_PART_NAMES = [
   "Alternator", 
@@ -147,6 +170,8 @@ export const MOCK_SELLER: SellerProfile = {
   userId: 's1',
   businessName: "Premium Parts Corp",
   contactPerson: "John Doe",
+  contactRole: "Sales Director",
+  contactImageUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200",
   phone: "27123456789",
   email: "sales@premiumparts.co.za",
   address: { 
@@ -157,13 +182,10 @@ export const MOCK_SELLER: SellerProfile = {
     postcode: "1234" 
   },
   whatsappEnabled: true,
-  logoUrl: "https://picsum.photos/seed/logo/200/200"
+  logoUrl: "https://images.unsplash.com/photo-1533106418989-88406c7cc8ca?auto=format&fit=crop&q=80&w=200",
+  socialLinks: {
+    facebook: "https://facebook.com/premiumpartsza",
+    instagram: "https://instagram.com/premiumpartsza",
+    website: "https://premiumparts.co.za"
+  }
 };
-
-export const SPARE_PARTS = [
-  { id: "1", name: "Oil Filter - 2024 Premium", category: "Engine & Components", price: 25.00, stock: 12, compatibility: "Toyota, Honda" },
-  { id: "2", name: "Brake Pads - Ceramic Set", category: "Brakes", price: 85.50, stock: 5, compatibility: "Ford F-150, RAM 1500" },
-  { id: "3", name: "Headlight Bulb LED H11", category: "Headlights & Lighting", price: 45.00, stock: 20, compatibility: "Universal" },
-  { id: "4", name: "Air Intake Gasket", category: "Engine & Components", price: 12.99, stock: 50, compatibility: "BMW 3 Series" },
-  { id: "5", name: "Spark Plug Platinum", category: "Engine & Components", price: 8.50, stock: 100, compatibility: "Nissan, Mazda" }
-];

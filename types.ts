@@ -30,7 +30,9 @@ export interface User {
 export interface SellerProfile {
   userId: string;
   businessName: string;
-  contactPerson: string;
+  contactPerson: string; // Manager Name
+  contactRole?: string;  // Manager Role (e.g. Sales Manager, Owner)
+  contactImageUrl?: string; // Manager Profile Picture
   phone: string;
   email: string;
   logoUrl?: string;
