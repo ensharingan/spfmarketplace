@@ -1,0 +1,169 @@
+
+import { ListingStatus, Product, UserRole, SellerProfile } from './types';
+
+export const CATEGORIES = [
+  'Engine & Components',
+  'Body Parts',
+  'Headlights & Lighting',
+  'Stripping',
+  'Stripping for Parts',
+  'Damaged Vehicles (Salvage)',
+  'Electrical Systems',
+  'Suspension & Steering',
+  'Transmission',
+  'Interior',
+  'Wheels & Tyres'
+];
+
+export const MAKES = ['Toyota', 'BMW', 'Mercedes-Benz', 'Audi', 'Volkswagen', 'Ford', 'Honda', 'Nissan', 'Hyundai', 'Kia', 'Mazda'];
+
+export const COMMON_PART_NAMES = [
+  "Alternator", 
+  "Brake Pads", 
+  "Brake Discs", 
+  "Radiator", 
+  "A/C Condenser", 
+  "Headlight (Left)", 
+  "Headlight (Right)", 
+  "Tail Light", 
+  "Front Bumper", 
+  "Rear Bumper",
+  "Bonnet", 
+  "Fender", 
+  "Grille", 
+  "Engine Block", 
+  "Complete Engine",
+  "Gearbox / Transmission", 
+  "Turbocharger",
+  "Shock Absorber", 
+  "Control Arm", 
+  "Wheel Hub", 
+  "Air Filter", 
+  "Oil Filter",
+  "Fuel Pump", 
+  "Starter Motor", 
+  "Car Battery", 
+  "Wiper Motor", 
+  "Side Mirror",
+  "Door Handle",
+  "Window Regulator"
+];
+
+export const INITIAL_PRODUCTS: Product[] = [
+  {
+    id: 'p1',
+    sellerId: 's1',
+    name: '2018 BMW M3 Alternator',
+    category: 'Electrical Systems',
+    make: 'BMW',
+    model: 'M3',
+    yearStart: 2014,
+    yearEnd: 2020,
+    condition: 'Used',
+    price: 4500.00,
+    quantity: 1,
+    sku: 'BMW-ALT-101',
+    description: 'Genuine BMW M3 Alternator in excellent working condition. Pulled from a low mileage donor.',
+    images: [
+      'https://images.unsplash.com/photo-1620023846007-885721759495?auto=format&fit=crop&q=80&w=800',
+      'https://images.unsplash.com/photo-1486006920555-c77dcf18193c?auto=format&fit=crop&q=80&w=800'
+    ],
+    shippingOptions: ['Collection', 'Courier'],
+    status: ListingStatus.ACTIVE,
+    location: 'Johannesburg, GP'
+  },
+  {
+    id: 'p2',
+    sellerId: 's1',
+    name: 'Mercedes-Benz C-Class (W205) LED Headlight Left',
+    category: 'Headlights & Lighting',
+    make: 'Mercedes-Benz',
+    model: 'C-Class',
+    yearStart: 2015,
+    yearEnd: 2021,
+    condition: 'Used',
+    price: 8200.00,
+    quantity: 2,
+    sku: 'MB-W205-HL-L',
+    description: 'Original Mercedes LED High Performance headlight. No broken tabs, clean lens.',
+    images: [
+      'https://images.unsplash.com/photo-1549399542-7e3f8b79c956?auto=format&fit=crop&q=80&w=800',
+      'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&q=80&w=800'
+    ],
+    shippingOptions: ['Collection', 'Courier'],
+    status: ListingStatus.ACTIVE,
+    location: 'Pretoria, GP'
+  },
+  {
+    id: 'p3',
+    sellerId: 's2',
+    name: 'Audi A4 (B8) 2.0 TFSI Engine (Stripping)',
+    category: 'Stripping for Parts',
+    make: 'Audi',
+    model: 'A4',
+    yearStart: 2008,
+    yearEnd: 2016,
+    condition: 'Used',
+    price: 22000.00,
+    quantity: 1,
+    sku: 'AUD-B8-ENG',
+    description: 'Complete engine available or stripping for parts. Low oil consumption reported before removal.',
+    images: [
+      'https://images.unsplash.com/photo-1493238792040-d710475a6d38?auto=format&fit=crop&q=80&w=800',
+      'https://images.unsplash.com/photo-1502161828065-d4aed90ca397?auto=format&fit=crop&q=80&w=800'
+    ],
+    shippingOptions: ['Collection'],
+    status: ListingStatus.ACTIVE,
+    location: 'Durban, KZN'
+  },
+  {
+    id: 'p5',
+    sellerId: 's4',
+    name: 'Salvage 2020 Toyota Hilux GD-6 (Non-Runner)',
+    category: 'Damaged Vehicles (Salvage)',
+    make: 'Toyota',
+    model: 'Hilux',
+    yearStart: 2020,
+    yearEnd: 2020,
+    condition: 'Damaged/Salvage',
+    price: 185000.00,
+    quantity: 1,
+    sku: 'SALV-TOY-001',
+    description: 'Front-end accident damage. Engine starts but vehicle is non-runner due to suspension damage. Papers in order.',
+    images: [
+      'https://images.unsplash.com/photo-1582266255765-fa5cf1a1d501?auto=format&fit=crop&q=80&w=800',
+      'https://images.unsplash.com/photo-1598501479153-0667823f054a?auto=format&fit=crop&q=80&w=800'
+    ],
+    shippingOptions: ['Collection'],
+    status: ListingStatus.ACTIVE,
+    location: 'Cape Town, WC',
+    isVehicle: true,
+    mileage: 45000,
+    transmission: 'Manual'
+  }
+];
+
+export const MOCK_SELLER: SellerProfile = {
+  userId: 's1',
+  businessName: "Premium Parts Corp",
+  contactPerson: "John Doe",
+  phone: "27123456789",
+  email: "sales@premiumparts.co.za",
+  address: { 
+    street: "123 Engine Ave", 
+    suburb: "Industrial", 
+    city: "Gear City", 
+    province: "Gauteng", 
+    postcode: "1234" 
+  },
+  whatsappEnabled: true,
+  logoUrl: "https://picsum.photos/seed/logo/200/200"
+};
+
+export const SPARE_PARTS = [
+  { id: "1", name: "Oil Filter - 2024 Premium", category: "Engine & Components", price: 25.00, stock: 12, compatibility: "Toyota, Honda" },
+  { id: "2", name: "Brake Pads - Ceramic Set", category: "Brakes", price: 85.50, stock: 5, compatibility: "Ford F-150, RAM 1500" },
+  { id: "3", name: "Headlight Bulb LED H11", category: "Headlights & Lighting", price: 45.00, stock: 20, compatibility: "Universal" },
+  { id: "4", name: "Air Intake Gasket", category: "Engine & Components", price: 12.99, stock: 50, compatibility: "BMW 3 Series" },
+  { id: "5", name: "Spark Plug Platinum", category: "Engine & Components", price: 8.50, stock: 100, compatibility: "Nissan, Mazda" }
+];

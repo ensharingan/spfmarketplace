@@ -1,18 +1,18 @@
 
 import React, { useState } from 'react';
-import { Product, ListingStatus } from '../types';
+import { Product, ListingStatus, SellerProfile } from '../types';
 
 interface ProductDetailProps {
   product: Product;
-  sellerPhone?: string;
+  seller: SellerProfile;
   onAddToCart: (p: Product) => void;
-  // Updated to accept the second optional boolean argument for showAlert
-  onEnquire: (enquiry: any, showAlert?: boolean) => void;
+  onEnquire: (enquiry: any, showAlert?: boolean) => string;
 }
 
-export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPhone, onAddToCart, onEnquire }) => {
+export const ProductDetail: React.FC<ProductDetailProps> = ({ product, seller, onAddToCart, onEnquire }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showEnquiryForm, setShowEnquiryForm] = useState(false);
+  const [enquirySuccessRef, setEnquirySuccessRef] = useState<string | null>(null);
   const [showFullGallery, setShowFullGallery] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0, show: false });
   
@@ -26,10 +26,9 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
   const isOutOfStock = product.status === ListingStatus.OUT_OF_STOCK || product.quantity === 0;
 
   const handleWhatsAppClick = () => {
-    const phone = sellerPhone || '27123456789';
+    const phone = seller.phone || '27123456789';
     const messageText = `Hi, I'm interested in your part: ${product.name} (R${product.price}). Is it still available?`;
     
-    // This call now matches the updated onEnquire prop signature
     onEnquire({
       buyerName: 'WhatsApp Visitor',
       buyerPhone: 'Direct Link',
@@ -46,14 +45,14 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
 
   const handleSubmitEnquiry = (e: React.FormEvent) => {
     e.preventDefault();
-    onEnquire({
+    const refId = onEnquire({
       ...enquiryData,
       productId: product.id,
       productName: product.name,
       sellerId: product.sellerId,
       status: 'New'
     });
-    setShowEnquiryForm(false);
+    setEnquirySuccessRef(refId);
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -71,6 +70,11 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
   const prevImage = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     setSelectedImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
+  };
+
+  const closeModals = () => {
+    setShowEnquiryForm(false);
+    setEnquirySuccessRef(null);
   };
 
   return (
@@ -113,7 +117,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
               </>
             )}
 
-            {/* Fullscreen indicator */}
             {!zoomPos.show && (
               <div className="absolute bottom-4 right-4 bg-dark/50 text-white p-2 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                 <span className="material-symbols-outlined">fullscreen</span>
@@ -121,7 +124,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
             )}
           </div>
           
-          {/* Thumbnails */}
           <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
             {product.images.map((img, i) => (
               <div 
@@ -160,7 +162,37 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
             </div>
           </div>
 
-          <div className={`grid ${product.isVehicle ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'} gap-6 py-8 border-y border-slate-100`}>
+          {/* Seller Information Card */}
+          <div className="bg-panel p-6 rounded-[2rem] border border-slate-200 shadow-sm flex items-center justify-between group">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shadow-sm">
+                {seller.logoUrl ? (
+                  <img src={seller.logoUrl} alt={seller.businessName} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="material-symbols-outlined text-3xl text-slate-300">storefront</span>
+                )}
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Verified Seller</p>
+                <h3 className="text-lg font-display font-black text-dark group-hover:text-primary transition-colors">
+                  {seller.businessName}
+                </h3>
+                <p className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-xs">location_on</span>
+                  {seller.address.city}, {seller.address.province}
+                </p>
+              </div>
+            </div>
+            <div className="hidden sm:block text-right">
+              <div className="flex items-center justify-end gap-1 text-[#25D366] mb-1">
+                <span className="material-symbols-outlined text-sm font-black">verified_user</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Active</span>
+              </div>
+              <p className="text-[10px] font-bold text-slate-400">Response time: &lt; 1hr</p>
+            </div>
+          </div>
+
+          <div className={`grid grid-cols-2 ${product.isVehicle ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-6 py-8 border-y border-slate-100`}>
             <div>
               <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5">Manufacturer</p>
               <p className="text-slate-900 font-bold flex items-center gap-2">
@@ -175,6 +207,33 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
                 {product.yearStart}{product.yearEnd !== product.yearStart ? ` - ${product.yearEnd}` : ''}
               </p>
             </div>
+            {product.isVehicle && (
+              <>
+                <div>
+                  <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5">Mileage</p>
+                  <p className="text-slate-900 font-bold flex items-center gap-2">
+                    <span className="material-symbols-outlined text-lg text-primary">speed</span>
+                    {product.mileage?.toLocaleString()} km
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5">Transmission</p>
+                  <p className="text-slate-900 font-bold flex items-center gap-2">
+                    <span className="material-symbols-outlined text-lg text-primary">settings_input_component</span>
+                    {product.transmission}
+                  </p>
+                </div>
+                {product.vin && (
+                  <div className="col-span-2 sm:col-span-3">
+                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5">VIN (Chassis Number)</p>
+                    <p className="text-slate-900 font-bold flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100 font-mono text-sm">
+                      <span className="material-symbols-outlined text-lg text-primary">fingerprint</span>
+                      {product.vin}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           <div className="prose prose-slate prose-sm max-w-none">
@@ -206,7 +265,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
         </div>
       </div>
 
-      {/* Full Screen Gallery Modal / Carousel */}
+      {/* Full Screen Gallery Modal */}
       {showFullGallery && (
         <div 
           className="fixed inset-0 z-[200] bg-dark/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 sm:p-8 animate-in fade-in duration-300"
@@ -220,7 +279,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
           </button>
           
           <div className="w-full max-w-6xl flex-1 flex flex-col items-center justify-center gap-8 relative" onClick={e => e.stopPropagation()}>
-            {/* Main Carousel Image */}
             <div className="w-full h-full max-h-[70vh] flex items-center justify-center relative">
               <img 
                 src={product.images[selectedImageIndex]} 
@@ -228,7 +286,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
                 alt={`${product.name} view ${selectedImageIndex + 1}`} 
               />
               
-              {/* Overlay Navigation */}
               {product.images.length > 1 && (
                 <>
                   <button 
@@ -247,7 +304,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
               )}
             </div>
 
-            {/* Bottom Thumbnails Strip */}
             <div className="w-full overflow-x-auto pb-4 px-4 flex justify-center gap-3">
               {product.images.map((img, i) => (
                 <div 
@@ -262,7 +318,6 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
               ))}
             </div>
 
-            {/* Counter */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-white/10 px-4 py-1 rounded-full text-white/50 text-xs font-black tracking-widest uppercase">
               {selectedImageIndex + 1} / {product.images.length}
             </div>
@@ -271,32 +326,58 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, sellerPho
       )}
 
       {/* Email Enquiry Modal */}
-      {showEnquiryForm && (
+      {(showEnquiryForm || enquirySuccessRef) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-dark/60 backdrop-blur-sm">
           <div className="bg-white rounded-[2rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-            <div className="p-6 bg-primary text-white flex justify-between items-center">
-              <h2 className="text-xl font-display font-bold">Email Enquiry</h2>
-              <button onClick={() => setShowEnquiryForm(false)} className="hover:opacity-70 p-2">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <form onSubmit={handleSubmitEnquiry} className="p-8 space-y-6">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Your Full Name</label>
-                <input required type="text" className="w-full rounded-2xl border-slate-200 py-4 px-5 focus:ring-primary focus:border-primary font-bold" placeholder="e.g. John Smith" value={enquiryData.buyerName} onChange={e => setEnquiryData({...enquiryData, buyerName: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">WhatsApp / Phone</label>
-                <input required type="tel" className="w-full rounded-2xl border-slate-200 py-4 px-5 focus:ring-primary focus:border-primary font-bold" placeholder="e.g. 082 123 4567" value={enquiryData.buyerPhone} onChange={e => setEnquiryData({...enquiryData, buyerPhone: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Message</label>
-                <textarea required rows={4} className="w-full rounded-2xl border-slate-200 py-4 px-5 focus:ring-primary focus:border-primary font-medium" value={enquiryData.message} onChange={e => setEnquiryData({...enquiryData, message: e.target.value})}></textarea>
-              </div>
-              <button type="submit" className="w-full bg-accent text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl shadow-red-500/30 hover:opacity-90 transition-all active:scale-95">
-                Submit Enquiry
-              </button>
-            </form>
+            {enquirySuccessRef ? (
+               <div className="p-10 text-center space-y-6">
+                  <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 scale-110">
+                    <span className="material-symbols-outlined text-5xl">check_circle</span>
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-display font-black text-dark mb-2">Enquiry Received!</h2>
+                    <p className="text-slate-500 font-medium leading-relaxed">
+                      Thank you for your interest in the <span className="text-primary font-bold">{product.name}</span>. The seller has been notified and will contact you shortly.
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-inner">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Enquiry Reference Number</p>
+                    <p className="text-xl font-display font-black text-primary tracking-widest uppercase">{enquirySuccessRef}</p>
+                  </div>
+                  <button 
+                    onClick={closeModals}
+                    className="w-full bg-dark text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl transition-all hover:-translate-y-1 active:scale-95"
+                  >
+                    Back to Product
+                  </button>
+               </div>
+            ) : (
+              <>
+                <div className="p-6 bg-primary text-white flex justify-between items-center">
+                  <h2 className="text-xl font-display font-bold">Email Enquiry</h2>
+                  <button onClick={() => setShowEnquiryForm(false)} className="hover:opacity-70 p-2">
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+                <form onSubmit={handleSubmitEnquiry} className="p-8 space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Your Full Name</label>
+                    <input required type="text" className="w-full rounded-2xl border-slate-200 py-4 px-5 focus:ring-primary focus:border-primary font-bold" placeholder="e.g. John Smith" value={enquiryData.buyerName} onChange={e => setEnquiryData({...enquiryData, buyerName: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">WhatsApp / Phone</label>
+                    <input required type="tel" className="w-full rounded-2xl border-slate-200 py-4 px-5 focus:ring-primary focus:border-primary font-bold" placeholder="e.g. 082 123 4567" value={enquiryData.buyerPhone} onChange={e => setEnquiryData({...enquiryData, buyerPhone: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Message</label>
+                    <textarea required rows={4} className="w-full rounded-2xl border-slate-200 py-4 px-5 focus:ring-primary focus:border-primary font-medium" value={enquiryData.message} onChange={e => setEnquiryData({...enquiryData, message: e.target.value})}></textarea>
+                  </div>
+                  <button type="submit" className="w-full bg-accent text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-2xl shadow-red-500/30 hover:opacity-90 transition-all active:scale-95">
+                    Submit Enquiry
+                  </button>
+                </form>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Product, SellerProfile, Enquiry, Order, ListingStatus, OrderStatus } from './types';
 import { INITIAL_PRODUCTS } from './constants';
+import { MOCK_SELLER } from './mockData';
 
 // --- COMPONENTS ---
 import { Header } from './components/Header';
@@ -34,7 +35,7 @@ export default function App() {
         userId: u.id,
         businessName: "Premium Parts Corp",
         contactPerson: "John Doe",
-        phone: "27123456789", // Realistic ZA format for WA
+        phone: "27123456789", 
         email: u.email,
         address: { street: "123 Engine Ave", suburb: "Industrial", city: "Gear City", province: "Gauteng", postcode: "1234" },
         whatsappEnabled: true,
@@ -44,19 +45,16 @@ export default function App() {
   };
 
   const handleEnquire = (enquiryData: any, showAlert: boolean = true) => {
-    setEnquiries(prev => [...prev, { 
+    const refId = `REF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const newEnquiry = { 
       ...enquiryData, 
-      id: `ENQ-${Date.now()}`, 
+      id: refId, 
       createdAt: new Date().toISOString() 
-    }]);
+    };
+    setEnquiries(prev => [...prev, newEnquiry]);
     
-    // If it's a WhatsApp lead, we don't show the generic email enquiry alert
-    const isWhatsApp = enquiryData.message?.includes('[WHATSAPP LEAD]');
-    
-    if (showAlert && !isWhatsApp) {
-      alert("Enquiry sent successfully!");
-      setView('home');
-    }
+    // We return the refId so components can show a nice confirmation message
+    return refId;
   };
 
   const addToCart = (product: Product) => {
@@ -91,6 +89,25 @@ export default function App() {
     alert(`Order #${orderData.id} placed successfully!`);
   };
 
+  // Helper to find the seller profile for a specific product
+  const getSellerForProduct = (sellerId: string): SellerProfile => {
+    // 1. If it's the current logged-in user
+    if (sellerProfile && sellerProfile.userId === sellerId) {
+      return sellerProfile;
+    }
+    // 2. Fallback to mock data or generated profile
+    if (MOCK_SELLER.userId === sellerId) {
+      return MOCK_SELLER;
+    }
+    // 3. Last resort fallback
+    return {
+      ...MOCK_SELLER,
+      userId: sellerId,
+      businessName: `Verified Seller ${sellerId.substring(0, 4)}`,
+      phone: "27123456789"
+    };
+  };
+
   const renderView = () => {
     switch (view) {
       case 'home':
@@ -105,11 +122,13 @@ export default function App() {
       case 'product':
         const prod = products.find(p => p.id === selectedProductId);
         if (!prod) return <div className="p-10 text-center">Product not found</div>;
-        const activeSeller = sellerProfile?.userId === prod.sellerId ? sellerProfile : { phone: "27123456789", whatsappEnabled: true };
+        
+        const activeSeller = getSellerForProduct(prod.sellerId);
+        
         return (
           <ProductDetail 
             product={prod} 
-            sellerPhone={activeSeller.phone}
+            seller={activeSeller}
             onAddToCart={addToCart} 
             onEnquire={handleEnquire}
           />

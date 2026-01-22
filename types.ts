@@ -69,6 +69,7 @@ export interface Product {
   status: ListingStatus;
   location: string;
   // Optional vehicle-specific fields for "Sell My Damaged Car"
+  vin?: string;
   mileage?: number;
   transmission?: 'Manual' | 'Automatic';
   isVehicle?: boolean;
