@@ -1,5 +1,5 @@
 
-import { ListingStatus, Product, UserRole, SellerProfile } from './types';
+import { ListingStatus, Product, UserRole, SellerProfile, SellerStatus } from './types';
 
 export const CATEGORIES = [
   'Engine & Components',
@@ -166,6 +166,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   }
 ];
 
+// Added missing status property to MOCK_SELLER
 export const MOCK_SELLER: SellerProfile = {
   userId: 's1',
   businessName: "Premium Parts Corp",
@@ -174,6 +175,7 @@ export const MOCK_SELLER: SellerProfile = {
   contactImageUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200",
   phone: "27123456789",
   email: "sales@premiumparts.co.za",
+  status: SellerStatus.APPROVED,
   address: { 
     street: "123 Engine Ave", 
     suburb: "Industrial", 

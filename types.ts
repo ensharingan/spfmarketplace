@@ -5,6 +5,12 @@ export enum UserRole {
   ADMIN = 'ADMIN'
 }
 
+export enum SellerStatus {
+  PENDING_APPROVAL = 'PENDING_APPROVAL',
+  APPROVED = 'APPROVED',
+  DISABLED = 'DISABLED'
+}
+
 export enum ListingStatus {
   ACTIVE = 'ACTIVE',
   OUT_OF_STOCK = 'OUT_OF_STOCK',
@@ -31,11 +37,12 @@ export interface SellerProfile {
   userId: string;
   businessName: string;
   contactPerson: string; // Manager Name
-  contactRole?: string;  // Manager Role (e.g. Sales Manager, Owner)
+  contactRole?: string;  // Manager Role
   contactImageUrl?: string; // Manager Profile Picture
   phone: string;
   email: string;
   logoUrl?: string;
+  status: SellerStatus;
   socialLinks?: {
     facebook?: string;
     instagram?: string;
@@ -70,7 +77,6 @@ export interface Product {
   shippingOptions: ('Collection' | 'Courier')[];
   status: ListingStatus;
   location: string;
-  // Optional vehicle-specific fields for "Sell My Damaged Car"
   vin?: string;
   mileage?: number;
   transmission?: 'Manual' | 'Automatic';
@@ -112,4 +118,13 @@ export interface OrderItem {
   productName: string;
   price: number;
   quantity: number;
+}
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  keywords: string[];
+  createdAt: string;
 }

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, UserRole, Product, SellerProfile, Enquiry, Order, ListingStatus, OrderStatus } from './types';
+import { User, UserRole, Product, SellerProfile, Enquiry, Order, ListingStatus, SellerStatus, BlogPost } from './types';
 import { INITIAL_PRODUCTS } from './constants';
 import { MOCK_SELLER } from './mockData';
 
@@ -23,24 +23,28 @@ export default function App() {
   const [cart, setCart] = useState<{product: Product, quantity: number}[]>([]);
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  
+  // Track all sellers in the system
+  const [sellers, setSellers] = useState<SellerProfile[]>([{ ...MOCK_SELLER, status: SellerStatus.APPROVED }]);
   const [sellerProfile, setSellerProfile] = useState<SellerProfile | null>(null);
 
   const handleAuth = (u: User, profile?: SellerProfile) => {
     setUser(u);
+    if (u.role === UserRole.ADMIN) {
+      setView('admin');
+      return;
+    }
+    
     if (profile) {
-      setSellerProfile(profile);
+      const newProfile = { ...profile, status: SellerStatus.PENDING_APPROVAL };
+      setSellers(prev => [...prev, newProfile]);
+      setSellerProfile(newProfile);
+      setView('sell');
     } else if (u.role === UserRole.SELLER) {
-      // Mock existing profile for login
-      setSellerProfile({
-        userId: u.id,
-        businessName: "Premium Parts Corp",
-        contactPerson: "John Doe",
-        phone: "27123456789", 
-        email: u.email,
-        address: { street: "123 Engine Ave", suburb: "Industrial", city: "Gear City", province: "Gauteng", postcode: "1234" },
-        whatsappEnabled: true,
-        logoUrl: "https://picsum.photos/seed/logo/200/200"
-      });
+      const existing = sellers.find(s => s.userId === u.id) || sellers[0];
+      setSellerProfile(existing);
+      setView('sell');
     }
   };
 
@@ -52,8 +56,6 @@ export default function App() {
       createdAt: new Date().toISOString() 
     };
     setEnquiries(prev => [...prev, newEnquiry]);
-    
-    // We return the refId so components can show a nice confirmation message
     return refId;
   };
 
@@ -89,23 +91,21 @@ export default function App() {
     alert(`Order #${orderData.id} placed successfully!`);
   };
 
-  // Helper to find the seller profile for a specific product
-  const getSellerForProduct = (sellerId: string): SellerProfile => {
-    // 1. If it's the current logged-in user
-    if (sellerProfile && sellerProfile.userId === sellerId) {
-      return sellerProfile;
-    }
-    // 2. Fallback to mock data or generated profile
-    if (MOCK_SELLER.userId === sellerId) {
-      return MOCK_SELLER;
-    }
-    // 3. Last resort fallback
-    return {
-      ...MOCK_SELLER,
-      userId: sellerId,
-      businessName: `Verified Seller ${sellerId.substring(0, 4)}`,
-      phone: "27123456789"
-    };
+  const updateSellerStatus = (sellerId: string, status: SellerStatus) => {
+    setSellers(prev => prev.map(s => s.userId === sellerId ? { ...s, status } : s));
+  };
+
+  // Admin Product Actions
+  const deleteProduct = (id: string) => {
+    setProducts(prev => prev.filter(p => p.id !== id));
+  };
+
+  const updateProduct = (updated: Product) => {
+    setProducts(prev => prev.map(p => p.id === updated.id ? updated : p));
+  };
+
+  const addBlogPost = (post: BlogPost) => {
+    setBlogPosts(prev => [post, ...prev]);
   };
 
   const renderView = () => {
@@ -114,17 +114,18 @@ export default function App() {
       case 'browse':
         return (
           <BrowseView 
-            products={products} 
+            products={products.filter(p => {
+              const seller = sellers.find(s => s.userId === p.sellerId);
+              return seller?.status === SellerStatus.APPROVED;
+            })} 
             onSelectProduct={(id) => { setSelectedProductId(id); setView('product'); }}
             onNavigateToSell={() => setView('sell')}
           />
         );
       case 'product':
         const prod = products.find(p => p.id === selectedProductId);
-        if (!prod) return <div className="p-10 text-center">Product not found</div>;
-        
-        const activeSeller = getSellerForProduct(prod.sellerId);
-        
+        if (!prod) return <div className="p-10 text-center font-bold">Product not found</div>;
+        const activeSeller = sellers.find(s => s.userId === prod.sellerId) || sellers[0];
         return (
           <ProductDetail 
             product={prod} 
@@ -135,7 +136,28 @@ export default function App() {
         );
       case 'sell':
         if (!user) return <AuthView onAuth={handleAuth} onBack={() => setView('home')} />;
-        if (user.role === UserRole.ADMIN) return <AdminDashboard products={products} users={[]} enquiries={enquiries} orders={orders} />;
+        if (user.role === UserRole.ADMIN) { setView('admin'); return null; }
+        
+        // Show approval pending screen if not approved
+        if (sellerProfile?.status === SellerStatus.PENDING_APPROVAL) {
+          return (
+            <div className="max-w-xl mx-auto my-20 p-10 bg-white rounded-[3rem] shadow-xl text-center">
+              <span className="material-symbols-outlined text-6xl text-primary mb-4 animate-pulse">verified_user</span>
+              <h2 className="text-3xl font-display font-black text-dark mb-2">Awaiting Approval</h2>
+              <p className="text-slate-500 font-medium leading-relaxed">Your application for <span className="text-primary font-bold">{sellerProfile.businessName}</span> is being reviewed by our Admin team. We'll notify you via email shortly.</p>
+            </div>
+          );
+        }
+        if (sellerProfile?.status === SellerStatus.DISABLED) {
+          return (
+            <div className="max-w-xl mx-auto my-20 p-10 bg-white rounded-[3rem] shadow-xl text-center border-t-8 border-accent">
+              <span className="material-symbols-outlined text-6xl text-accent mb-4">block</span>
+              <h2 className="text-3xl font-display font-black text-dark mb-2">Account Suspended</h2>
+              <p className="text-slate-500 font-medium">Your seller account has been disabled. Please contact support@spf.co.za for more information.</p>
+            </div>
+          );
+        }
+
         return (
           <SellerDashboard 
             user={user} 
@@ -144,9 +166,24 @@ export default function App() {
             enquiries={enquiries.filter(e => e.sellerId === user.id)}
             orders={orders.filter(o => o.items.some(i => products.find(p => p.id === i.productId)?.sellerId === user.id))}
             onAddProduct={(p) => setProducts([...products, { ...p, id: `p${Date.now()}` }])}
-            onUpdateProduct={(updated) => setProducts(products.map(p => p.id === updated.id ? updated : p))}
-            onDeleteProduct={(id) => setProducts(products.filter(p => p.id !== id))}
-            onUpdateProfile={(updated) => setSellerProfile(updated)}
+            onUpdateProduct={updateProduct}
+            onDeleteProduct={deleteProduct}
+            onUpdateProfile={(updated) => { setSellerProfile(updated); setSellers(prev => prev.map(s => s.userId === updated.userId ? updated : s)); }}
+          />
+        );
+      case 'admin':
+        if (!user || user.role !== UserRole.ADMIN) { setView('home'); return null; }
+        return (
+          <AdminDashboard 
+            products={products} 
+            sellers={sellers}
+            enquiries={enquiries} 
+            orders={orders} 
+            blogPosts={blogPosts}
+            onUpdateSellerStatus={updateSellerStatus}
+            onDeleteProduct={deleteProduct}
+            onUpdateProduct={updateProduct}
+            onAddBlogPost={addBlogPost}
           />
         );
       case 'cart':

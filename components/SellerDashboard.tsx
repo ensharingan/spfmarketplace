@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { User, Product, SellerProfile, Enquiry, Order, ListingStatus } from '../types';
+import { User, Product, SellerProfile, Enquiry, Order, ListingStatus, SellerStatus } from '../types';
 import { CATEGORIES, SA_VEHICLE_DATA, MAKES } from '../mockData';
 import { GoogleGenAI, Type } from '@google/genai';
 
@@ -19,8 +19,9 @@ const PROVINCES = [
 // --- HELPERS ---
 const generateSKU = (make: string) => {
   const prefix = (make || 'GEN').substring(0, 3).toUpperCase();
-  const timestamp = Date.now().toString(36).slice(-5).toUpperCase();
-  return `${prefix}-${timestamp}`;
+  const randomStr = Math.random().toString(36).substring(2, 5).toUpperCase();
+  const timestamp = Date.now().toString(36).slice(-4).toUpperCase();
+  return `${prefix}-${randomStr}${timestamp}`;
 };
 
 const years = Array.from({ length: new Date().getFullYear() - 1980 + 1 }, (_, i) => new Date().getFullYear() - i);
@@ -47,12 +48,12 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isDecodingVin, setIsDecodingVin] = useState(false);
+  const [vinFeedback, setVinFeedback] = useState<{ type: 'error' | 'success', message: string } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const managerImgInputRef = useRef<HTMLInputElement>(null);
 
-  // Profile Form State initialized with profile or empty defaults
   const [profileForm, setProfileForm] = useState<SellerProfile>(profile || {
     userId: user.id,
     businessName: '',
@@ -62,10 +63,18 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     phone: '',
     email: user.email,
     logoUrl: '',
+    status: SellerStatus.PENDING_APPROVAL,
     address: { street: '', suburb: '', city: '', province: '', postcode: '' },
     whatsappEnabled: true,
-    socialLinks: { facebook: '', instagram: '', website: '' }
+    socialLinks: { facebook: '', instagram: '', website: '' },
+    operatingHours: ''
   });
+
+  useEffect(() => {
+    if (profile && !isEditingProfile) {
+      setProfileForm(profile);
+    }
+  }, [profile, isEditingProfile]);
 
   const initialFormState: Partial<Product> = {
     name: '',
@@ -91,7 +100,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
   const [formData, setFormData] = useState<Partial<Product>>(initialFormState);
 
-  // Statistics Calculation
   const stats = useMemo(() => {
     const whatsappLeads = enquiries.filter(e => e.message.includes('[WHATSAPP LEAD]')).length;
     const totalStockValue = products.reduce((acc, p) => acc + (p.price * p.quantity), 0);
@@ -109,57 +117,85 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const handleAddClick = () => {
     setEditingProduct(null);
     setFormData(initialFormState);
+    setVinFeedback(null);
     setShowModal(true);
   };
 
   const handleEditClick = (p: Product) => {
     setEditingProduct(p);
     setFormData({ ...p });
+    setVinFeedback(null);
     setShowModal(true);
+  };
+
+  const handleTriggerSkuGen = () => {
+    setFormData(prev => ({
+      ...prev,
+      sku: generateSKU(prev.make || 'GEN')
+    }));
   };
 
   const handleDecodeVin = async () => {
     const vinValue = (formData.vin || '').trim();
-    if (vinValue.length < 10) {
-      alert("Please enter a valid VIN");
+    setVinFeedback(null);
+
+    if (vinValue.length === 0) {
+      setVinFeedback({ type: 'error', message: 'Please enter a VIN.' });
+      return;
+    }
+
+    if (vinValue.length < 17) {
+      setVinFeedback({ type: 'error', message: `VIN too short (${vinValue.length}/17).` });
       return;
     }
 
     setIsDecodingVin(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const availableMakes = MAKES.join(', ');
+      
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Analyze and decode this vehicle VIN: ${vinValue}`,
+        model: 'gemini-3-flash-preview',
+        contents: [{ role: 'user', parts: [{ text: `Decode this 17-character vehicle VIN: ${vinValue}` }] }],
         config: {
-          systemInstruction: "Respond ONLY with a JSON object containing 'make', 'model', and 'year'.",
+          systemInstruction: `You are an automotive expert. Extract Make, Model, and Year from the VIN. 
+          The Make MUST match one of these: ${availableMakes}. 
+          If you cannot decode it, provide a specific reason (e.g., "Invalid format", "Make not recognized", "Year out of range").
+          Return ONLY a JSON object.`,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
+              success: { type: Type.BOOLEAN },
               make: { type: Type.STRING },
               model: { type: Type.STRING },
-              year: { type: Type.INTEGER }
+              year: { type: Type.INTEGER },
+              errorReason: { type: Type.STRING }
             },
-            required: ["make", "model", "year"]
+            required: ["success"]
           }
         }
       });
 
       const result = JSON.parse(response.text || '{}');
-      if (result.make && result.model) {
+      if (result.success && result.make && result.model) {
+        const exactMake = MAKES.find(m => m.toLowerCase() === result.make.toLowerCase()) || result.make;
+        
         setFormData(prev => ({
           ...prev,
-          make: result.make,
+          make: exactMake,
           model: result.model,
           yearStart: result.year || prev.yearStart,
           yearEnd: result.year || prev.yearEnd,
-          name: `${result.year || ''} ${result.make} ${result.model} ${prev.name || ''}`.trim()
+          name: `${result.year || ''} ${exactMake} ${result.model} ${prev.name || ''}`.trim()
         }));
+        setVinFeedback({ type: 'success', message: `Successfully identified: ${result.year} ${exactMake} ${result.model}` });
+      } else {
+        setVinFeedback({ type: 'error', message: result.errorReason || 'VIN format invalid or unrecognized.' });
       }
     } catch (error) {
       console.error("VIN decoding failed:", error);
-      alert("Unable to decode VIN. Enter details manually.");
+      setVinFeedback({ type: 'error', message: 'Unable to connect to decoder. Please enter details manually.' });
     } finally {
       setIsDecodingVin(false);
     }
@@ -233,7 +269,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 text-slate-800">
-      {/* Dashboard Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-4xl font-display font-black text-dark tracking-tight italic">Seller Console</h1>
@@ -247,12 +282,8 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       </div>
 
-      {/* Main Stats Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div 
-          onClick={() => setActiveTab('enquiries')}
-          className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:border-primary transition-all group"
-        >
+        <div onClick={() => setActiveTab('enquiries')} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:border-primary transition-all group">
           <div className="flex justify-between items-start mb-2">
             <span className="material-symbols-outlined text-[#25D366] group-hover:scale-110 transition-transform">chat</span>
             <span className="text-[10px] font-black text-[#25D366] uppercase tracking-widest">WhatsApp Leads</span>
@@ -261,10 +292,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Direct Enquiries</p>
         </div>
         
-        <div 
-          onClick={() => setActiveTab('enquiries')}
-          className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:border-primary transition-all group"
-        >
+        <div onClick={() => setActiveTab('enquiries')} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:border-primary transition-all group">
           <div className="flex justify-between items-start mb-2">
             <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">mail</span>
             <span className="text-[10px] font-black text-primary uppercase tracking-widest">New Leads</span>
@@ -292,7 +320,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         </div>
       </div>
 
-      {/* Tabs Menu */}
       <div className="flex overflow-x-auto gap-2 mb-8 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
         {[
           { id: 'listings', label: 'Inventory', icon: 'list_alt' },
@@ -421,7 +448,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
              {isEditingProfile ? (
                <form onSubmit={handleProfileSubmit} className="space-y-10 max-w-5xl">
-                  {/* Business Identity & Media */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200">
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Business Logo</label>
@@ -445,7 +471,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                             value={profileForm.logoUrl || ''}
                             onChange={e => setProfileForm({...profileForm, logoUrl: e.target.value})}
                           />
-                          <p className="text-[9px] text-slate-400 mt-2 italic font-medium uppercase tracking-widest">Logo helps buyers identify your store</p>
                         </div>
                       </div>
                     </div>
@@ -457,8 +482,8 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                           {profileForm.contactImageUrl ? (
                             <img src={profileForm.contactImageUrl} className="w-full h-full object-cover" alt="Manager preview" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-400">
-                              <span className="material-symbols-outlined text-4xl">person</span>
+                            <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300">
+                               <span className="material-symbols-outlined text-6xl">person</span>
                             </div>
                           )}
                           <button type="button" onClick={() => managerImgInputRef.current?.click()} className="absolute inset-0 bg-dark/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[9px] font-black uppercase">Change</button>
@@ -472,28 +497,17 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                             value={profileForm.contactImageUrl || ''}
                             onChange={e => setProfileForm({...profileForm, contactImageUrl: e.target.value})}
                           />
-                          <p className="text-[9px] text-slate-400 mt-2 italic font-medium uppercase tracking-widest">Adds a personal touch to your listings</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Information Grid */}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Column 1: Core Details */}
                     <div className="space-y-6">
                       <h4 className="text-[10px] font-black text-primary uppercase tracking-widest border-b border-primary/20 pb-2">Business Presence</h4>
                       <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Business Name</label>
                         <input required className="w-full rounded-xl border-slate-200 py-3 text-sm font-bold" value={profileForm.businessName} onChange={e => setProfileForm({...profileForm, businessName: e.target.value})} />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Manager Full Name</label>
-                        <input required className="w-full rounded-xl border-slate-200 py-3 text-sm font-bold" value={profileForm.contactPerson} onChange={e => setProfileForm({...profileForm, contactPerson: e.target.value})} />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Manager Role / Title</label>
-                        <input placeholder="e.g. Sales Manager" className="w-full rounded-xl border-slate-200 py-3 text-sm font-bold" value={profileForm.contactRole} onChange={e => setProfileForm({...profileForm, contactRole: e.target.value})} />
                       </div>
                       <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">WhatsApp / Sales Line</label>
@@ -508,9 +522,12 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                            </button>
                         </div>
                       </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Operating Hours</label>
+                        <input placeholder="e.g. Mon-Fri: 8am - 5pm" className="w-full rounded-xl border-slate-200 py-3 text-sm font-bold" value={profileForm.operatingHours || ''} onChange={e => setProfileForm({...profileForm, operatingHours: e.target.value})} />
+                      </div>
                     </div>
 
-                    {/* Column 2: Location */}
                     <div className="space-y-6">
                       <h4 className="text-[10px] font-black text-primary uppercase tracking-widest border-b border-primary/20 pb-2">Dispatch Address</h4>
                       <div>
@@ -542,137 +559,47 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                       </div>
                     </div>
 
-                    {/* Column 3: Social & Web */}
                     <div className="space-y-6">
                       <h4 className="text-[10px] font-black text-primary uppercase tracking-widest border-b border-primary/20 pb-2">Social & Website</h4>
                       <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                           <img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" className="w-3 h-3 grayscale" alt=""/> Facebook Link
-                        </label>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">Facebook</label>
                         <input placeholder="https://facebook.com/your-business" className="w-full rounded-xl border-slate-200 py-3 text-sm font-bold" value={profileForm.socialLinks?.facebook} onChange={e => setProfileForm({...profileForm, socialLinks: {...profileForm.socialLinks, facebook: e.target.value}})} />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                           <img src="https://cdn-icons-png.flaticon.com/512/2111/2111463.png" className="w-3 h-3 grayscale" alt=""/> Instagram Link
-                        </label>
-                        <input placeholder="https://instagram.com/your-business" className="w-full rounded-xl border-slate-200 py-3 text-sm font-bold" value={profileForm.socialLinks?.instagram} onChange={e => setProfileForm({...profileForm, socialLinks: {...profileForm.socialLinks, instagram: e.target.value}})} />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                           <span className="material-symbols-outlined text-[14px]">language</span> Website URL
-                        </label>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2">Website URL</label>
                         <input placeholder="https://yourwebsite.co.za" className="w-full rounded-xl border-slate-200 py-3 text-sm font-bold" value={profileForm.socialLinks?.website} onChange={e => setProfileForm({...profileForm, socialLinks: {...profileForm.socialLinks, website: e.target.value}})} />
                       </div>
                     </div>
                   </div>
 
                   <div className="flex gap-4 pt-4 border-t border-slate-100">
-                    <button 
-                      type="button" 
-                      onClick={() => setIsEditingProfile(false)}
-                      className="flex-1 bg-white text-slate-400 py-4 rounded-2xl font-black uppercase text-xs tracking-widest border border-slate-200 hover:text-dark transition-all"
-                    >
-                      Discard
-                    </button>
-                    <button 
-                      type="submit"
-                      className="flex-[2] bg-primary text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-blue-900/20 active:scale-95 transition-all"
-                    >
-                      Save Profile Changes
-                    </button>
+                    <button type="button" onClick={() => setIsEditingProfile(false)} className="flex-1 bg-white text-slate-400 py-4 rounded-2xl font-black uppercase text-xs tracking-widest border border-slate-200 hover:text-dark transition-all">Discard</button>
+                    <button type="submit" className="flex-[2] bg-primary text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-blue-900/20 active:scale-95 transition-all">Save Profile Changes</button>
                   </div>
                </form>
              ) : (
                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                 {/* Professional Profile View */}
                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Left: Store Card */}
                     <div className="bg-slate-50 p-8 rounded-[3rem] border border-slate-100 flex flex-col items-center text-center shadow-inner relative overflow-hidden group">
-                       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2"></div>
-                       <div className="w-32 h-32 rounded-3xl bg-white border shadow-sm overflow-hidden flex-shrink-0 mb-6 transition-transform group-hover:scale-105 duration-500">
-                          {profile?.logoUrl ? (
-                            <img src={profile.logoUrl} className="w-full h-full object-cover" alt="" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-200">
-                              <span className="material-symbols-outlined text-5xl">storefront</span>
-                            </div>
-                          )}
+                       <div className="w-32 h-32 rounded-3xl bg-white border shadow-sm overflow-hidden flex-shrink-0 mb-6 group-hover:scale-105 transition-transform">
+                          {profile?.logoUrl ? <img src={profile.logoUrl} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center text-slate-200"><span className="material-symbols-outlined text-5xl">storefront</span></div>}
                        </div>
                        <h4 className="text-3xl font-display font-black text-dark tracking-tighter mb-2">{profile?.businessName}</h4>
-                       <div className="flex gap-4 mb-6">
-                          {profile?.socialLinks?.facebook && <a href={profile.socialLinks.facebook} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-white border shadow-sm flex items-center justify-center hover:scale-110 transition-transform"><img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" className="w-5 h-5" alt="FB" /></a>}
-                          {profile?.socialLinks?.instagram && <a href={profile.socialLinks.instagram} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-white border shadow-sm flex items-center justify-center hover:scale-110 transition-transform"><img src="https://cdn-icons-png.flaticon.com/512/2111/2111463.png" className="w-5 h-5" alt="IG" /></a>}
-                          {profile?.socialLinks?.website && <a href={profile.socialLinks.website} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-white border shadow-sm flex items-center justify-center hover:scale-110 transition-transform"><span className="material-symbols-outlined text-xl text-primary">language</span></a>}
-                       </div>
                        <div className="w-full space-y-3">
-                          <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
-                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Main Sales Line</span>
-                             <span className="text-sm font-black text-dark">{profile?.phone}</span>
-                          </div>
-                          <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
-                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact Email</span>
-                             <span className="text-sm font-black text-dark">{profile?.email}</span>
-                          </div>
+                          <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Main Sales Line</span><span className="text-sm font-black text-dark">{profile?.phone}</span></div>
+                          <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact Email</span><span className="text-sm font-black text-dark">{profile?.email}</span></div>
+                          {profile?.operatingHours && <div className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hours</span><span className="text-sm font-black text-emerald-600">{profile.operatingHours}</span></div>}
                        </div>
                     </div>
-
-                    {/* Right: Manager Card */}
                     <div className="bg-white p-8 rounded-[3rem] border border-slate-100 flex flex-col sm:flex-row items-center gap-8 shadow-sm">
                        <div className="w-40 h-40 rounded-full border-4 border-slate-50 overflow-hidden flex-shrink-0 shadow-lg">
-                          {profile?.contactImageUrl ? (
-                            <img src={profile.contactImageUrl} className="w-full h-full object-cover" alt="" />
-                          ) : (
-                            <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300">
-                               <span className="material-symbols-outlined text-6xl">person</span>
-                            </div>
-                          )}
+                          {profile?.contactImageUrl ? <img src={profile.contactImageUrl} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300"><span className="material-symbols-outlined text-6xl">person</span></div>}
                        </div>
                        <div className="flex-1 text-center sm:text-left">
                           <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Key Representative</p>
                           <h4 className="text-2xl font-display font-black text-dark mb-1">{profile?.contactPerson}</h4>
                           <p className="text-slate-500 font-bold mb-4">{profile?.contactRole || 'Marketplace Manager'}</p>
-                          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 inline-block">
-                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                <span className="material-symbols-outlined text-xs">location_on</span> Current Base
-                             </p>
-                             <p className="text-xs font-bold text-dark">{profile?.address.city}, {profile?.address.province}</p>
-                          </div>
-                       </div>
-                    </div>
-                 </div>
-
-                 {/* Address & Trust Details */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 space-y-4">
-                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                          <span className="material-symbols-outlined text-lg">home_pin</span>
-                          Physical Location
-                       </h4>
-                       <div className="space-y-1">
-                          <p className="font-bold text-dark">{profile?.address.street}</p>
-                          <p className="text-sm font-medium text-slate-500">{profile?.address.suburb}</p>
-                          <p className="text-sm font-medium text-slate-500">{profile?.address.city}, {profile?.address.province}</p>
-                          <p className="text-sm font-medium text-slate-500">{profile?.address.postcode}</p>
-                       </div>
-                    </div>
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 space-y-4">
-                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                          <span className="material-symbols-outlined text-lg">verified_user</span>
-                          Marketplace Standing
-                       </h4>
-                       <div className="grid grid-cols-2 gap-3">
-                          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                             <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                <span className="material-symbols-outlined text-sm">check</span>
-                             </div>
-                             <p className="text-[10px] font-black text-dark uppercase">Verified</p>
-                          </div>
-                          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                             <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                <span className="material-symbols-outlined text-sm">chat</span>
-                             </div>
-                             <p className="text-[10px] font-black text-dark uppercase">WhatsApp</p>
-                          </div>
+                          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 inline-block"><p className="text-xs font-bold text-dark">{profile?.address.city}, {profile?.address.province}</p></div>
                        </div>
                     </div>
                  </div>
@@ -691,22 +618,26 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-8">
-              {/* VIN Auto-Fill Section */}
               <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200">
                 <div className="flex items-center gap-2 mb-4">
                   <span className="material-symbols-outlined text-primary">verified</span>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">VIN Decoder (Optional Auto-Fill)</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">VIN Decoder (Make, Model, Year)</label>
                 </div>
                 <div className="flex gap-3">
-                  <input type="text" placeholder="Enter 17-digit VIN..." className="flex-1 rounded-2xl border-slate-200 text-sm font-bold py-3.5 px-6 uppercase shadow-sm" value={formData.vin} onChange={e => setFormData({...formData, vin: e.target.value.toUpperCase()})} />
+                  <input type="text" maxLength={17} placeholder="Enter 17-digit VIN..." className="flex-1 rounded-2xl border-slate-200 text-sm font-bold py-3.5 px-6 uppercase shadow-sm" value={formData.vin} onChange={e => setFormData({...formData, vin: e.target.value.toUpperCase()})} />
                   <button type="button" onClick={handleDecodeVin} disabled={isDecodingVin} className="bg-primary text-white px-6 py-3.5 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-2 disabled:opacity-50">
                     {isDecodingVin ? <span className="material-symbols-outlined animate-spin text-lg">sync</span> : <span className="material-symbols-outlined text-lg">bolt</span>}
                     {isDecodingVin ? 'Decoding' : 'Fill Info'}
                   </button>
                 </div>
+                {vinFeedback && (
+                  <div className={`mt-3 text-[11px] font-bold px-1 flex items-center gap-1 ${vinFeedback.type === 'error' ? 'text-accent' : 'text-emerald-600'}`}>
+                    <span className="material-symbols-outlined text-sm">{vinFeedback.type === 'error' ? 'error' : 'check_circle'}</span>
+                    {vinFeedback.message}
+                  </div>
+                )}
               </div>
 
-              {/* Media Section */}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Photos ({formData.images?.length || 0}/10)</label>
                 <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
@@ -724,7 +655,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                 <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" multiple />
               </div>
 
-              {/* Vehicle Compatibility Matrix */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50 rounded-3xl border border-slate-100">
                 <div className="md:col-span-2">
                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Part Title</label>
@@ -732,7 +662,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Make (South Africa)</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Make</label>
                   <select required className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold" value={formData.make} onChange={e => setFormData({...formData, make: e.target.value, model: ''})}>
                     <option value="">Select Make</option>
                     {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
@@ -748,37 +678,23 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                 </div>
 
                 <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">SKU (Empty for Auto-Gen)</label>
+                  <div className="flex gap-2">
+                    <input type="text" className="flex-1 rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold placeholder:italic placeholder:font-normal" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} placeholder="e.g. TOY-HIL-001" />
+                    <button type="button" onClick={handleTriggerSkuGen} className="px-4 py-2 bg-slate-100 text-dark border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all">Gen</button>
+                  </div>
+                </div>
+
+                <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Year Start</label>
-                  <select required className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold" value={formData.yearStart} onChange={e => setFormData({...formData, yearStart: Number(e.target.value)})}>
+                  <select className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold" value={formData.yearStart} onChange={e => setFormData({...formData, yearStart: Number(e.target.value)})}>
                     {years.map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Year End</label>
-                  <select required className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold" value={formData.yearEnd} onChange={e => setFormData({...formData, yearEnd: Number(e.target.value)})}>
-                    {years.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Category</label>
-                  <select required className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Asking Price (R)</label>
-                  <input required type="number" className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-black text-primary" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} />
                 </div>
               </div>
 
               {formError && <p className="text-accent text-xs font-bold text-center">{formError}</p>}
-
-              <button type="submit" className="w-full bg-primary text-white py-5 rounded-[1.5rem] font-black uppercase tracking-widest shadow-2xl transition-all hover:-translate-y-1 active:scale-95">
-                {editingProduct ? 'Save Updates' : 'Publish Listing Now'}
-              </button>
+              <button type="submit" className="w-full bg-primary text-white py-5 rounded-[1.5rem] font-black uppercase tracking-widest shadow-2xl transition-all hover:-translate-y-1 active:scale-95">Publish Listing Now</button>
             </form>
           </div>
         </div>

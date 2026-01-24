@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Product, ListingStatus, SellerProfile } from '../types';
+import { MAKES } from '../mockData';
 import { GoogleGenAI, Type } from '@google/genai';
 
 interface ProductDetailProps {
@@ -69,40 +70,55 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, seller, o
   }, [seller]);
 
   const handleVinDecode = async () => {
-    if (!vinInput.trim()) return;
+    const vinValue = vinInput.trim();
+    if (!vinValue) return;
+    
+    if (vinValue.length < 17) {
+      setVinError(`VIN too short (${vinValue.length}/17).`);
+      return;
+    }
+
     setIsDecoding(true);
     setVinError(null);
     setDecodedResult(null);
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const availableMakes = MAKES.join(', ');
+      
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: `Decode this vehicle VIN and return the basic info: ${vinInput}`,
+        model: 'gemini-3-flash-preview',
+        contents: [{ role: 'user', parts: [{ text: `Decode this vehicle VIN and return the basic info: ${vinValue}` }] }],
         config: {
-          systemInstruction: "You are a vehicle specialist. Extract the Make, Model, and Year from the VIN. Return ONLY JSON with keys: 'make', 'model', 'year' (as number).",
+          systemInstruction: `You are an automotive expert. Extract the Make, Model, and Year from the provided VIN. 
+          The Make MUST exactly match one of these from our database: ${availableMakes}. 
+          If decoding fails, provide a specific reason (e.g., "Invalid format", "Make not recognized", "Year not extractable").
+          Return ONLY valid JSON.`,
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
             properties: {
+              success: { type: Type.BOOLEAN },
               make: { type: Type.STRING },
               model: { type: Type.STRING },
-              year: { type: Type.NUMBER }
+              year: { type: Type.INTEGER },
+              errorReason: { type: Type.STRING }
             },
-            required: ['make', 'model', 'year']
+            required: ['success']
           }
         }
       });
 
       const result = JSON.parse(response.text || '{}');
-      if (result.make && result.model) {
-        setDecodedResult(result);
+      if (result.success && result.make && result.model) {
+        const exactMake = MAKES.find(m => m.toLowerCase() === result.make.toLowerCase()) || result.make;
+        setDecodedResult({ ...result, make: exactMake });
       } else {
-        setVinError("Could not decode this VIN. Please check if it's correct.");
+        setVinError(result.errorReason || "Could not decode this VIN. Please check if it's correct.");
       }
     } catch (error) {
       console.error("VIN decoding failed:", error);
-      setVinError("Decoding failed. The AI was unable to process this request.");
+      setVinError("Decoding failed. Please try a different VIN or check your connection.");
     } finally {
       setIsDecoding(false);
     }
@@ -269,7 +285,7 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, seller, o
              <div className="flex gap-2">
                 <input 
                   type="text" 
-                  placeholder="Enter vehicle VIN..." 
+                  placeholder="Enter 17-character VIN..." 
                   className="flex-1 rounded-xl border-slate-200 text-xs font-bold py-3 uppercase focus:ring-primary focus:border-primary"
                   value={vinInput}
                   onChange={(e) => setVinInput(e.target.value)}
@@ -302,12 +318,12 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, seller, o
                   <p className="text-sm font-black text-dark tracking-tight">
                     {decodedResult.year} {decodedResult.make} {decodedResult.model}
                   </p>
-                  <p className="text-[9px] text-slate-500 mt-1 italic">Verified via Gemini 3 AI Model</p>
+                  <p className="text-[9px] text-slate-500 mt-1 italic">Verified via Gemini AI Flash</p>
                </div>
              )}
 
              {vinError && (
-               <div className="mt-3 text-accent text-[10px] font-bold px-1 flex items-center gap-1">
+               <div className="mt-3 text-accent text-[11px] font-bold px-1 flex items-center gap-1">
                  <span className="material-symbols-outlined text-sm">error</span>
                  {vinError}
                </div>

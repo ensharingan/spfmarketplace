@@ -4,7 +4,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spare Parts Finder ZA</title>
+    <title>Spare Parts Finder ZA - Auto Parts Marketplace South Africa</title>
+    <meta name="description" content="South Africa's #1 marketplace for second-hand and new auto spare parts. Find engines, body parts, and accessories from verified local sellers.">
+    <meta name="keywords" content="auto parts south africa, car spares, engines for sale, toyota parts, vw parts, second hand car parts">
+    
+    <!-- Structured Data for Marketplace -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Spare Parts Finder ZA",
+      "url": "https://sparepartsfinder.co.za",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://sparepartsfinder.co.za/browse?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" />
@@ -29,6 +47,20 @@
     <style>
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+          width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+          background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
         }
     </style>
 <script type="importmap">
