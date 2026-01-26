@@ -47,16 +47,16 @@ export const AuthView: React.FC<AuthViewProps> = ({ onAuth, onBack }) => {
         contactRole: "Owner",
         phone: phone, // This is the WhatsApp number
         email: email,
-        status: SellerStatus.PENDING_APPROVAL,
+        status: SellerStatus.APPROVED, // Default to approved for immediate visibility
         address: { 
           street: "Pending Verification", 
           suburb: "Pending", 
           city: city, 
-          province: "Pending", 
+          province: "Gauteng", 
           postcode: "0000" 
         },
         whatsappEnabled: true,
-        logoUrl: "https://picsum.photos/seed/placeholder/200/200",
+        logoUrl: "https://images.unsplash.com/photo-1533106418989-88406c7cc8ca?auto=format&fit=crop&q=80&w=200",
         socialLinks: {
           facebook: '',
           instagram: '',

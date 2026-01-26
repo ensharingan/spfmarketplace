@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Product, ListingStatus } from '../types';
-import { CATEGORIES, MAKES } from '../mockData';
+import { CATEGORIES, MAKES, SA_VEHICLE_DATA } from '../mockData';
 import { ProductCard } from './ProductCard';
 import { ImageAnalysisModal } from './ImageAnalysisModal';
 
@@ -19,6 +19,8 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showAiModal, setShowAiModal] = useState(false);
 
+  const standardMakesList = Object.keys(SA_VEHICLE_DATA);
+
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const startYear = 1980;
@@ -31,11 +33,16 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
 
   const availableModels = useMemo(() => {
     const filtered = selectedMake 
-      ? products.filter(p => p.make === selectedMake)
+      ? products.filter(p => {
+          if (selectedMake === 'Other') {
+            return !standardMakesList.includes(p.make);
+          }
+          return p.make === selectedMake;
+        })
       : products;
     const modelSet = new Set(filtered.map(p => p.model));
     return Array.from(modelSet).sort();
-  }, [selectedMake, products]);
+  }, [selectedMake, products, standardMakesList]);
 
   const filteredProducts = products.filter(p => {
     const searchLower = searchTerm.toLowerCase();
@@ -46,7 +53,15 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
       (p.vin && p.vin.toLowerCase().includes(searchLower))
     ) : true;
     
-    const matchesMake = selectedMake ? p.make.toLowerCase() === selectedMake.toLowerCase() : true;
+    let matchesMake = true;
+    if (selectedMake) {
+      if (selectedMake === 'Other') {
+        matchesMake = !standardMakesList.includes(p.make);
+      } else {
+        matchesMake = p.make.toLowerCase() === selectedMake.toLowerCase();
+      }
+    }
+
     const matchesModel = selectedModel ? p.model.toLowerCase() === selectedModel.toLowerCase() : true;
     const matchesYear = selectedYear ? (
       parseInt(selectedYear) >= p.yearStart && parseInt(selectedYear) <= p.yearEnd
@@ -67,7 +82,10 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
 
   const handleAiResult = (result: any) => {
     setSearchTerm(result.name);
-    if (result.make) setSelectedMake(result.make);
+    if (result.make) {
+      const standardMake = standardMakesList.find(m => m.toLowerCase() === result.make.toLowerCase());
+      setSelectedMake(standardMake || 'Other');
+    }
     if (result.model) setSelectedModel(result.model);
     if (result.category && CATEGORIES.includes(result.category)) setSelectedCategory(result.category);
   };

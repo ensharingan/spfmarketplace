@@ -13,6 +13,7 @@ export const SEOManager: React.FC<SEOManagerProps> = ({ onAddPost, blogPosts }) 
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<'generate' | 'posts'>('generate');
 
+  // Fix: simplified contents property to be a string
   const generateSEOContent = async () => {
     if (!keyword.trim()) return;
     setIsGenerating(true);
@@ -25,7 +26,7 @@ export const SEOManager: React.FC<SEOManagerProps> = ({ onAddPost, blogPosts }) 
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        contents: prompt,
         config: { responseMimeType: 'application/json' }
       });
 

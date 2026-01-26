@@ -12,7 +12,8 @@ export const CATEGORIES = [
   'Suspension & Steering',
   'Transmission',
   'Interior',
-  'Wheels & Tyres'
+  'Wheels & Tyres',
+  'Other'
 ];
 
 export const SA_VEHICLE_DATA: Record<string, string[]> = {
@@ -38,7 +39,7 @@ export const SA_VEHICLE_DATA: Record<string, string[]> = {
   'Land Rover': ['Defender', 'Discovery', 'Range Rover Sport', 'Range Rover Evoque']
 };
 
-export const MAKES = Object.keys(SA_VEHICLE_DATA).sort();
+export const MAKES = [...Object.keys(SA_VEHICLE_DATA).sort(), 'Other'];
 
 export const COMMON_PART_NAMES = [
   "Alternator", 
@@ -166,28 +167,70 @@ export const INITIAL_PRODUCTS: Product[] = [
   }
 ];
 
-// Added missing status property to MOCK_SELLER
-export const MOCK_SELLER: SellerProfile = {
-  userId: 's1',
-  businessName: "Premium Parts Corp",
-  contactPerson: "John Doe",
-  contactRole: "Sales Director",
-  contactImageUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200",
-  phone: "27123456789",
-  email: "sales@premiumparts.co.za",
-  status: SellerStatus.APPROVED,
-  address: { 
-    street: "123 Engine Ave", 
-    suburb: "Industrial", 
-    city: "Gear City", 
-    province: "Gauteng", 
-    postcode: "1234" 
+export const INITIAL_SELLERS: SellerProfile[] = [
+  {
+    userId: 's1',
+    businessName: "Premium Parts Corp",
+    contactPerson: "John Doe",
+    contactRole: "Sales Director",
+    contactImageUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200",
+    phone: "27123456789",
+    email: "sales@premiumparts.co.za",
+    status: SellerStatus.APPROVED,
+    address: { 
+      street: "123 Engine Ave", 
+      suburb: "Industrial", 
+      city: "Gear City", 
+      province: "Gauteng", 
+      postcode: "1234" 
+    },
+    whatsappEnabled: true,
+    operatingHours: "Mon-Fri: 08:00 - 17:00",
+    logoUrl: "https://images.unsplash.com/photo-1533106418989-88406c7cc8ca?auto=format&fit=crop&q=80&w=200",
+    socialLinks: {
+      facebook: "https://facebook.com/premiumpartsza",
+      instagram: "https://instagram.com/premiumpartsza",
+      website: "https://premiumparts.co.za"
+    }
   },
-  whatsappEnabled: true,
-  logoUrl: "https://images.unsplash.com/photo-1533106418989-88406c7cc8ca?auto=format&fit=crop&q=80&w=200",
-  socialLinks: {
-    facebook: "https://facebook.com/premiumpartsza",
-    instagram: "https://instagram.com/premiumpartsza",
-    website: "https://premiumparts.co.za"
+  {
+    userId: 's2',
+    businessName: "Coastal Spares KZN",
+    contactPerson: "Sarah Smith",
+    contactRole: "Operations Manager",
+    phone: "27821112222",
+    email: "sarah@coastalspares.co.za",
+    status: SellerStatus.APPROVED,
+    address: {
+      street: "45 Marine Parade",
+      suburb: "North Beach",
+      city: "Durban",
+      province: "KwaZulu-Natal",
+      postcode: "4001"
+    },
+    whatsappEnabled: true,
+    operatingHours: "Mon-Sat: 09:00 - 16:00",
+    logoUrl: "https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&q=80&w=200"
+  },
+  {
+    userId: 's4',
+    businessName: "Cape Town Salvage Hub",
+    contactPerson: "Mike Ross",
+    contactRole: "Stock Controller",
+    phone: "27713334444",
+    email: "mike@ctsalvage.co.za",
+    status: SellerStatus.APPROVED,
+    address: {
+      street: "88 Harbour Rd",
+      suburb: "Salt River",
+      city: "Cape Town",
+      province: "Western Cape",
+      postcode: "7925"
+    },
+    whatsappEnabled: true,
+    operatingHours: "Mon-Fri: 07:30 - 16:30",
+    logoUrl: "https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&q=80&w=200"
   }
-};
+];
+
+export const MOCK_SELLER = INITIAL_SELLERS[0];

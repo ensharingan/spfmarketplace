@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Product, SellerProfile, Enquiry, Order, ListingStatus, SellerStatus, BlogPost } from './types';
 import { INITIAL_PRODUCTS } from './constants';
-import { MOCK_SELLER } from './mockData';
+import { INITIAL_SELLERS, MOCK_SELLER } from './mockData';
 
 // --- COMPONENTS ---
 import { Header } from './components/Header';
@@ -25,8 +25,8 @@ export default function App() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   
-  // Track all sellers in the system
-  const [sellers, setSellers] = useState<SellerProfile[]>([{ ...MOCK_SELLER, status: SellerStatus.APPROVED }]);
+  // Initialize with all initial approved sellers
+  const [sellers, setSellers] = useState<SellerProfile[]>(INITIAL_SELLERS);
   const [sellerProfile, setSellerProfile] = useState<SellerProfile | null>(null);
 
   const handleAuth = (u: User, profile?: SellerProfile) => {
@@ -37,12 +37,34 @@ export default function App() {
     }
     
     if (profile) {
-      const newProfile = { ...profile, status: SellerStatus.PENDING_APPROVAL };
-      setSellers(prev => [...prev, newProfile]);
+      // Auto-approve for demo purposes so listings show immediately
+      const newProfile = { ...profile, status: SellerStatus.APPROVED };
+      setSellers(prev => {
+        const exists = prev.find(s => s.userId === newProfile.userId);
+        if (exists) return prev;
+        return [...prev, newProfile];
+      });
       setSellerProfile(newProfile);
       setView('sell');
     } else if (u.role === UserRole.SELLER) {
-      const existing = sellers.find(s => s.userId === u.id) || sellers[0];
+      // Check if this user already has a profile in our state
+      let existing = sellers.find(s => s.userId === u.id);
+      
+      if (!existing) {
+        // If no profile exists for this ID, create a default one to ensure products are visible
+        existing = {
+          userId: u.id,
+          businessName: u.email.split('@')[0].toUpperCase() + " SPARES",
+          contactPerson: "Store Manager",
+          phone: "27000000000",
+          email: u.email,
+          status: SellerStatus.APPROVED,
+          address: { street: '123 Main St', suburb: 'Industrial', city: 'Midrand', province: 'Gauteng', postcode: '1685' },
+          whatsappEnabled: true
+        };
+        setSellers(prev => [...prev, existing!]);
+      }
+      
       setSellerProfile(existing);
       setView('sell');
     }
@@ -116,6 +138,7 @@ export default function App() {
           <BrowseView 
             products={products.filter(p => {
               const seller = sellers.find(s => s.userId === p.sellerId);
+              // Only show products from approved sellers
               return seller?.status === SellerStatus.APPROVED;
             })} 
             onSelectProduct={(id) => { setSelectedProductId(id); setView('product'); }}
@@ -165,7 +188,7 @@ export default function App() {
             products={products.filter(p => p.sellerId === user.id)}
             enquiries={enquiries.filter(e => e.sellerId === user.id)}
             orders={orders.filter(o => o.items.some(i => products.find(p => p.id === i.productId)?.sellerId === user.id))}
-            onAddProduct={(p) => setProducts([...products, { ...p, id: `p${Date.now()}` }])}
+            onAddProduct={(p) => setProducts(prev => [...prev, { ...p, id: `p${Date.now()}` }])}
             onUpdateProduct={updateProduct}
             onDeleteProduct={deleteProduct}
             onUpdateProfile={(updated) => { setSellerProfile(updated); setSellers(prev => prev.map(s => s.userId === updated.userId ? updated : s)); }}

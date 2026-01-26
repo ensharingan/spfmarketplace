@@ -1,4 +1,7 @@
-
+interface BrowseViewProps {
+  products: Product[];
+  ...
+}
 import React, { useState } from 'react';
 import { Product, ListingStatus } from '../types';
 import { CATEGORIES, MAKES } from '../constants';
