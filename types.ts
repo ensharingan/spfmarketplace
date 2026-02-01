@@ -64,6 +64,7 @@ export interface Product {
   sellerId: string;
   name: string;
   category: string;
+  partGroup: string; // New field
   make: string;
   model: string;
   yearStart: number;

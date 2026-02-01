@@ -1,6 +1,23 @@
 
 import { ListingStatus, Product, UserRole, SellerProfile, SellerStatus } from './types';
 
+export const PART_GROUPS = [
+  'Engine & Drivetrain',
+  'Body & Panels',
+  'Suspension & Steering',
+  'Braking System',
+  'Electrical & Electronics',
+  'Interior & Trim',
+  'Lighting',
+  'Heating & Cooling',
+  'Fuel System',
+  'Exhaust System',
+  'Wheels & Tyres',
+  'Accessories',
+  'Salvage Vehicle',
+  'Other'
+];
+
 export const CATEGORIES = [
   'Engine & Components',
   'Body Parts',
@@ -79,6 +96,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sellerId: 's1',
     name: '2018 BMW M3 Alternator',
     category: 'Electrical Systems',
+    partGroup: 'Electrical & Electronics',
     make: 'BMW',
     model: 'M3',
     yearStart: 2014,
@@ -101,6 +119,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sellerId: 's1',
     name: 'Mercedes-Benz C-Class (W205) LED Headlight Left',
     category: 'Headlights & Lighting',
+    partGroup: 'Lighting',
     make: 'Mercedes-Benz',
     model: 'C-Class',
     yearStart: 2015,
@@ -123,6 +142,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sellerId: 's2',
     name: 'Audi A4 (B8) 2.0 TFSI Engine (Stripping)',
     category: 'Stripping for Parts',
+    partGroup: 'Engine & Drivetrain',
     make: 'Audi',
     model: 'A4',
     yearStart: 2008,
@@ -145,6 +165,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     sellerId: 's4',
     name: 'Salvage 2020 Toyota Hilux GD-6 (Non-Runner)',
     category: 'Damaged Vehicles (Salvage)',
+    partGroup: 'Salvage Vehicle',
     make: 'Toyota',
     model: 'Hilux',
     yearStart: 2020,
@@ -174,7 +195,7 @@ export const INITIAL_SELLERS: SellerProfile[] = [
     contactPerson: "John Doe",
     contactRole: "Sales Director",
     contactImageUrl: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200",
-    phone: "27123456789",
+    phone: "27615494504", 
     email: "sales@premiumparts.co.za",
     status: SellerStatus.APPROVED,
     address: { 
@@ -198,7 +219,7 @@ export const INITIAL_SELLERS: SellerProfile[] = [
     businessName: "Coastal Spares KZN",
     contactPerson: "Sarah Smith",
     contactRole: "Operations Manager",
-    phone: "27821112222",
+    phone: "27615494504",
     email: "sarah@coastalspares.co.za",
     status: SellerStatus.APPROVED,
     address: {
@@ -217,7 +238,7 @@ export const INITIAL_SELLERS: SellerProfile[] = [
     businessName: "Cape Town Salvage Hub",
     contactPerson: "Mike Ross",
     contactRole: "Stock Controller",
-    phone: "27713334444",
+    phone: "27615494504",
     email: "mike@ctsalvage.co.za",
     status: SellerStatus.APPROVED,
     address: {
