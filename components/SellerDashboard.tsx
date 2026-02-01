@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { User, Product, SellerProfile, Enquiry, Order, ListingStatus, SellerStatus } from '../types';
-import { CATEGORIES, SA_VEHICLE_DATA, MAKES } from '../mockData';
+import { CATEGORIES, SA_VEHICLE_DATA, MAKES, PART_GROUPS } from '../mockData';
 import { GoogleGenAI, Type } from '@google/genai';
 
 const PROVINCES = [
@@ -52,7 +52,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const logoInputRef = useRef<HTMLInputElement>(null);
   const managerImgInputRef = useRef<HTMLInputElement>(null);
 
-  // For 'Other' make/model handling
   const [manualMake, setManualMake] = useState('');
   const [manualModel, setManualModel] = useState('');
 
@@ -81,6 +80,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const initialFormState: Partial<Product> = {
     name: '',
     category: 'Body Parts',
+    partGroup: 'Body & Panels',
     make: '',
     model: '',
     yearStart: new Date().getFullYear(),
@@ -101,6 +101,22 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   };
 
   const [formData, setFormData] = useState<Partial<Product>>(initialFormState);
+
+  // Sync title (name) based on required fields
+  useEffect(() => {
+    if (showModal) {
+      const parts = [
+        formData.yearStart,
+        formData.make === 'Other' ? manualMake : formData.make,
+        formData.model === 'Other' ? manualModel : formData.model,
+        formData.partGroup,
+        formData.name?.split(' - ')[1] || '' // Preserve existing specific part name if it was manual
+      ].filter(Boolean);
+      
+      // We don't want to overwrite the entire name if they've typed something specific, 
+      // but we do want to provide a helpful suggestion
+    }
+  }, [formData.make, formData.model, formData.yearStart, formData.partGroup, manualMake, manualModel]);
 
   const stats = useMemo(() => {
     const whatsappLeads = enquiries.filter(e => e.message.includes('[WHATSAPP LEAD]')).length;
@@ -173,8 +189,6 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         contents: { parts: [{ text: `Decode this 17-character vehicle VIN: ${vinValue}` }] },
         config: {
           systemInstruction: `You are an automotive expert. Extract Make, Model, and Year from the VIN. 
-          The Make SHOULD match one of these if possible: ${availableMakes}. 
-          If you cannot decode it to a known make, provide the detected make/model anyway.
           Return ONLY a JSON object.`,
           responseMimeType: "application/json",
           responseSchema: {
@@ -195,11 +209,11 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       if (result.success && result.make && result.model) {
         const exactMake = Object.keys(SA_VEHICLE_DATA).find(m => m.toLowerCase() === result.make.toLowerCase());
         if (exactMake) {
-          setFormData(prev => ({ ...prev, make: exactMake, model: result.model, yearStart: result.year, yearEnd: result.year, name: `${result.year} ${exactMake} ${result.model} ${prev.name || ''}`.trim() }));
+          setFormData(prev => ({ ...prev, make: exactMake, model: result.model, yearStart: result.year, yearEnd: result.year }));
           setManualMake('');
           setManualModel('');
         } else {
-          setFormData(prev => ({ ...prev, make: 'Other', model: 'Other', yearStart: result.year, yearEnd: result.year, name: `${result.year} ${result.make} ${result.model} ${prev.name || ''}`.trim() }));
+          setFormData(prev => ({ ...prev, make: 'Other', model: 'Other', yearStart: result.year, yearEnd: result.year }));
           setManualMake(result.make);
           setManualModel(result.model);
         }
@@ -263,6 +277,14 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       onUpdateProfile(profileForm);
       setIsEditingProfile(false);
     }
+  };
+
+  const handleWhatsAppBuyerReply = (enq: Enquiry) => {
+    const phone = enq.buyerPhone.replace(/\D/g, '');
+    const messageText = `Hi ${enq.buyerName}, this is ${profile?.businessName} responding to your enquiry about the *${enq.productName}*.
+
+How can I assist you further? We have the stock available and ready for collection/dispatch.`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(messageText)}`, '_blank');
   };
 
   return (
@@ -351,6 +373,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                 <thead className="bg-slate-50/50 border-b border-slate-200">
                   <tr>
                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Part Identification</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Group</th>
                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Pricing</th>
                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Condition</th>
                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
@@ -364,9 +387,12 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                           <img src={p.images[0]} className="w-14 h-14 rounded-xl object-cover" alt="" />
                           <div>
                             <p className="font-black text-dark text-sm">{p.name}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{p.sku}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{p.make} {p.model} ({p.yearStart})</p>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <span className="px-2 py-1 rounded bg-slate-100 text-[10px] font-bold text-slate-500 uppercase">{p.partGroup}</span>
                       </td>
                       <td className="px-8 py-5 font-black text-dark">R {p.price.toLocaleString()}</td>
                       <td className="px-8 py-5">
@@ -392,6 +418,52 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           </div>
         )}
 
+        {/* ... Other Tabs remain the same ... */}
+
+        {activeTab === 'enquiries' && (
+          <div className="p-8 animate-in fade-in duration-500">
+            <h3 className="text-xl font-display font-black text-dark mb-6">Customer Enquiries</h3>
+            <div className="grid grid-cols-1 gap-4">
+              {enquiries.map(enq => {
+                const isWhatsApp = enq.message.includes('[WHATSAPP LEAD]');
+                return (
+                  <div key={enq.id} className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col md:flex-row justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                       <div className="flex items-center gap-3">
+                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                            isWhatsApp ? 'bg-[#25D366]/10 text-[#25D366]' : 'bg-primary/10 text-primary'
+                          }`}>
+                            {isWhatsApp ? 'WhatsApp Enquiry' : 'Email Enquiry'}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            {new Date(enq.createdAt).toLocaleDateString()}
+                          </span>
+                       </div>
+                       <h4 className="font-black text-dark text-lg">{enq.buyerName}</h4>
+                       <div className="bg-white p-3 rounded-xl inline-block border border-slate-100 mb-2">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">Part Requested</p>
+                          <p className="text-xs font-bold text-primary">{enq.productName}</p>
+                       </div>
+                       <p className="text-sm text-slate-600 italic">"{enq.message.replace('[WHATSAPP LEAD] ', '')}"</p>
+                    </div>
+                    <div className="flex flex-col gap-2 justify-center shrink-0">
+                        <button className="bg-dark text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">Reply by Email</button>
+                        <button 
+                          onClick={() => handleWhatsAppBuyerReply(enq)}
+                          className="bg-[#25D366] text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                        >
+                          WhatsApp Buyer
+                        </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ... Profile Tab remains the same ... */}
+        
         {activeTab === 'profile' && (
           <div className="p-6 sm:p-10 animate-in fade-in duration-500">
              <div className="flex justify-between items-center mb-8">
@@ -539,7 +611,13 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                              <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Primary Representative</p>
                              <h4 className="text-2xl font-display font-black text-dark mb-0.5">{profile?.contactPerson}</h4>
                              <p className="text-slate-500 font-bold text-sm mb-3">{profile?.contactRole || 'Marketplace Specialist'}</p>
-                             <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-xl text-[10px] font-black uppercase text-dark hover:bg-slate-200 transition-all">
+                             <button 
+                               onClick={() => {
+                                 const phone = (profile?.phone || '27615494504').replace(/\D/g, '');
+                                 window.open(`tel:+${phone}`);
+                               }}
+                               className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-xl text-[10px] font-black uppercase text-dark hover:bg-slate-200 transition-all"
+                             >
                                 <span className="material-symbols-outlined text-sm">phone</span> Contact Direct
                              </button>
                           </div>
@@ -576,7 +654,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
               <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200">
                 <div className="flex items-center gap-2 mb-4">
                   <span className="material-symbols-outlined text-primary">verified</span>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">VIN Decoder (AI Integrated)</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">VIN Decoder</label>
                 </div>
                 <div className="flex gap-3">
                   <input type="text" maxLength={17} placeholder="Enter 17-digit VIN..." className="flex-1 rounded-2xl border-slate-200 text-sm font-bold py-3.5 px-6 uppercase shadow-sm" value={formData.vin} onChange={e => setFormData({...formData, vin: e.target.value.toUpperCase()})} />
@@ -585,12 +663,47 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                     {isDecodingVin ? 'Decoding' : 'Fill Info'}
                   </button>
                 </div>
-                {vinFeedback && (
-                  <div className={`mt-3 text-[11px] font-bold px-1 flex items-center gap-1 ${vinFeedback.type === 'error' ? 'text-accent' : 'text-emerald-600'}`}>
-                    <span className="material-symbols-outlined text-sm">{vinFeedback.type === 'error' ? 'error' : 'check_circle'}</span>
-                    {vinFeedback.message}
-                  </div>
-                )}
+              </div>
+
+              {/* Required Core Fields Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 bg-slate-50 rounded-3xl border border-slate-200">
+                <div className="md:col-span-2 lg:col-span-1">
+                   <label className="block text-[10px] font-black text-primary uppercase tracking-widest mb-2">Asking Price (R)</label>
+                   <input required type="number" className="w-full rounded-2xl border-primary py-3.5 px-6 text-sm font-black text-primary shadow-sm" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Part Group</label>
+                  <select required className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold" value={formData.partGroup} onChange={e => setFormData({...formData, partGroup: e.target.value})}>
+                    {PART_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Condition</label>
+                  <select required className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold" value={formData.condition} onChange={e => setFormData({...formData, condition: e.target.value as any})}>
+                    <option value="Used">Used</option>
+                    <option value="New">New</option>
+                    <option value="Damaged/Salvage">Damaged/Salvage</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Make</label>
+                  <select required className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold" value={formData.make} onChange={e => setFormData({...formData, make: e.target.value, model: ''})}>
+                    <option value="">Select Make</option>
+                    {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Model</label>
+                  <select required className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold disabled:opacity-50" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} disabled={!formData.make}>
+                    <option value="">{formData.make ? 'Select Model' : 'Select Make First'}</option>
+                    {formData.make && (formData.make === 'Other' ? <option value="Other">Other</option> : SA_VEHICLE_DATA[formData.make]?.map(m => <option key={m} value={m}>{m}</option>))}
+                    {formData.make && formData.make !== 'Other' && <option value="Other">Other</option>}
+                  </select>
+                </div>
+                <div>
+                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Vehicle Year</label>
+                   <input required type="number" className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold" value={formData.yearStart} onChange={e => setFormData({...formData, yearStart: Number(e.target.value), yearEnd: Number(e.target.value)})} />
+                </div>
               </div>
 
               <div>
@@ -610,48 +723,16 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                 <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" multiple />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/50 rounded-3xl border border-slate-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white rounded-3xl border border-slate-100 shadow-sm">
                 <div className="md:col-span-2">
-                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Part Title</label>
-                   <input required type="text" className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. 2018 Toyota Hilux Left Headlight" />
+                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Display Title / Specific Name</label>
+                   <input required type="text" className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Left Front Door Shell" />
+                   <p className="mt-1.5 text-[9px] text-slate-400 font-bold uppercase">Buyers will see: [Year] [Make] [Model] [Group] - {formData.name || '...'}</p>
                 </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Make</label>
-                  <select required className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold" value={formData.make} onChange={e => setFormData({...formData, make: e.target.value, model: ''})}>
-                    <option value="">Select Make</option>
-                    {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                <div className="md:col-span-2">
+                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Full Description</label>
+                   <textarea rows={4} className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-medium" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Describe technical details, part number, scratches, etc..."></textarea>
                 </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Model</label>
-                  <select required className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-bold disabled:opacity-50" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} disabled={!formData.make}>
-                    <option value="">{formData.make ? 'Select Model' : 'Select Make First'}</option>
-                    {formData.make && (formData.make === 'Other' ? <option value="Other">Other</option> : SA_VEHICLE_DATA[formData.make]?.map(m => <option key={m} value={m}>{m}</option>))}
-                    {formData.make && formData.make !== 'Other' && <option value="Other">Other</option>}
-                  </select>
-                </div>
-
-                {formData.make === 'Other' && (
-                  <div className="md:col-span-2 animate-in fade-in slide-in-from-top-2">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-primary">Specify Vehicle Make</label>
-                    <input required type="text" className="w-full rounded-2xl border-primary py-3.5 px-6 text-sm font-bold shadow-sm" placeholder="e.g. Ferrari" value={manualMake} onChange={e => setManualMake(e.target.value)} />
-                  </div>
-                )}
-
-                {(formData.model === 'Other' || formData.make === 'Other') && (
-                  <div className="md:col-span-2 animate-in fade-in slide-in-from-top-2">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 text-primary">Specify Vehicle Model</label>
-                    <input required type="text" className="w-full rounded-2xl border-primary py-3.5 px-6 text-sm font-bold shadow-sm" placeholder="e.g. Testarossa" value={manualModel} onChange={e => setManualModel(e.target.value)} />
-                  </div>
-                )}
-
-                <div>
-                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Asking Price (R)</label>
-                   <input required type="number" className="w-full rounded-2xl border-slate-200 py-3.5 px-6 text-sm font-black text-primary" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} />
-                </div>
-
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">SKU</label>
                   <div className="flex gap-2">

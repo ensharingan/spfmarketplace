@@ -108,9 +108,39 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, seller, o
   };
 
   const handleWhatsAppClick = () => {
-    const phone = seller.phone || '27123456789';
-    const messageText = `Hi, I'm interested in your part: ${product.name} (R${product.price}). Is it still available?`;
-    onEnquire({ buyerName: 'WhatsApp Visitor', buyerPhone: 'Direct Link', productId: product.id, productName: product.name, sellerId: product.sellerId, message: '[WHATSAPP LEAD] User initiated WhatsApp conversation for: ' + product.name, status: 'New' }, false);
+    // Default to the provided test number if seller phone is missing
+    const phone = (seller.phone || '27615494504').replace(/\D/g, '');
+    
+    // Generate the deep-link back to the listing
+    const currentUrl = window.location.origin + window.location.pathname + '?product=' + product.id;
+    
+    // Pick the primary image to include in text (this helps WhatsApp load the rich preview)
+    const productImage = product.images[0] || '';
+    
+    // Construct a high-conversion message with emojis, formatting, picture, and link
+    const messageText = `Hi ${seller.businessName},
+
+I am interested in this part I found on *Spare Parts Finder ZA*:
+
+📦 *${product.name}*
+💰 Price: R${product.price.toLocaleString()}
+🏷️ Condition: ${product.condition}
+
+🖼️ *Part Image:* ${productImage}
+🔗 *Full Listing:* ${currentUrl}
+
+Is this still available for collection/delivery?`;
+    
+    onEnquire({ 
+      buyerName: 'WhatsApp Visitor', 
+      buyerPhone: 'Direct Link', 
+      productId: product.id, 
+      productName: product.name, 
+      sellerId: product.sellerId, 
+      message: '[WHATSAPP LEAD] User initiated WhatsApp conversation for: ' + product.name, 
+      status: 'New' 
+    }, false);
+
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(messageText)}`, '_blank');
   };
 
@@ -247,6 +277,13 @@ export const ProductDetail: React.FC<ProductDetailProps> = ({ product, seller, o
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Mobile Sticky Bar (Added for consistency) */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-[90] flex gap-3 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+        <button onClick={handleWhatsAppClick} className="flex-1 bg-[#25D366] text-white h-14 rounded-xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2">
+          <span className="material-symbols-outlined">chat</span> WhatsApp Now
+        </button>
       </div>
 
       {/* Gallery Modal */}

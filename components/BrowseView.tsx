@@ -17,6 +17,7 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCondition, setSelectedCondition] = useState('');
   const [showAiModal, setShowAiModal] = useState(false);
 
   const standardMakesList = Object.keys(SA_VEHICLE_DATA);
@@ -67,9 +68,10 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
       parseInt(selectedYear) >= p.yearStart && parseInt(selectedYear) <= p.yearEnd
     ) : true;
     const matchesCategory = selectedCategory ? p.category === selectedCategory : true;
+    const matchesCondition = selectedCondition ? p.condition === selectedCondition : true;
     const isActive = p.status === ListingStatus.ACTIVE || p.status === ListingStatus.OUT_OF_STOCK;
     
-    return matchesSearch && matchesMake && matchesModel && matchesYear && matchesCategory && isActive;
+    return matchesSearch && matchesMake && matchesModel && matchesYear && matchesCategory && matchesCondition && isActive;
   });
 
   const resetFilters = () => {
@@ -78,6 +80,7 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
     setSelectedModel('');
     setSelectedYear('');
     setSelectedCategory('');
+    setSelectedCondition('');
   };
 
   const handleAiResult = (result: any) => {
@@ -106,9 +109,9 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
       </div>
 
       {/* Horizontal Multi-Field Search Matrix */}
-      <div className="relative z-20 -mt-10 mb-12 max-w-6xl mx-auto">
+      <div className="relative z-20 -mt-10 mb-12 max-w-7xl mx-auto">
         <div className="bg-white rounded-3xl shadow-2xl shadow-dark/10 p-4 border border-slate-100">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
             <div className="relative md:col-span-1">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-lg">search</span>
               <input 
@@ -152,6 +155,20 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
             </div>
 
             <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-lg">verified</span>
+              <select 
+                className="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary/20 font-bold text-xs text-dark appearance-none"
+                value={selectedCondition}
+                onChange={(e) => setSelectedCondition(e.target.value)}
+              >
+                <option value="">All Conditions</option>
+                <option value="New">Brand New</option>
+                <option value="Used">Used / Second Hand</option>
+                <option value="Damaged/Salvage">Damaged / Salvage</option>
+              </select>
+            </div>
+
+            <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-lg">calendar_month</span>
               <select 
                 className="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-primary/20 font-bold text-xs text-dark appearance-none"
@@ -176,7 +193,7 @@ export const BrowseView: React.FC<BrowseViewProps> = ({ products, onSelectProduc
             </div>
           </div>
           
-          {(searchTerm || selectedMake || selectedModel || selectedYear || selectedCategory) && (
+          {(searchTerm || selectedMake || selectedModel || selectedYear || selectedCategory || selectedCondition) && (
             <div className="mt-3 flex justify-end">
               <button onClick={resetFilters} className="text-[9px] font-black uppercase text-slate-400 hover:text-accent flex items-center gap-1">
                 <span className="material-symbols-outlined text-xs">restart_alt</span>

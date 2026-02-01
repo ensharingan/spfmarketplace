@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Product, Enquiry, Order, SellerProfile, SellerStatus, BlogPost } from '../types';
 import { SEOManager } from './SEOManager';
-import { MAKES, SA_VEHICLE_DATA, CATEGORIES } from '../mockData';
+import { MAKES, SA_VEHICLE_DATA, CATEGORIES, PART_GROUPS } from '../mockData';
 
 const years = Array.from({ length: new Date().getFullYear() - 1980 + 1 }, (_, i) => new Date().getFullYear() - i);
 
@@ -294,7 +294,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <SEOManager onAddPost={onAddBlogPost} blogPosts={blogPosts} />
       )}
 
-      {/* Admin Edit Modal */}
       {editingProduct && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-dark/90 backdrop-blur-md">
           <div className="bg-white rounded-[3rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-10 animate-in zoom-in-95 duration-300">
@@ -313,18 +312,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                    <input required type="text" className="w-full rounded-2xl border-slate-200 py-3 text-sm font-bold" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} />
                 </div>
                 <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Part Group</label>
+                  <select required className="w-full rounded-2xl border-slate-200 py-3 text-sm font-bold" value={editingProduct.partGroup} onChange={e => setEditingProduct({...editingProduct, partGroup: e.target.value})}>
+                    {PART_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Condition</label>
+                  <select required className="w-full rounded-2xl border-slate-200 py-3 text-sm font-bold" value={editingProduct.condition} onChange={e => setEditingProduct({...editingProduct, condition: e.target.value as any})}>
+                    <option value="Used">Used</option>
+                    <option value="New">New</option>
+                    <option value="Damaged/Salvage">Damaged/Salvage</option>
+                  </select>
+                </div>
+                <div>
                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Asking Price (R)</label>
                    <input required type="number" className="w-full rounded-2xl border-slate-200 py-3 text-sm font-black text-primary" value={editingProduct.price} onChange={e => setEditingProduct({...editingProduct, price: Number(e.target.value)})} />
                 </div>
                 <div>
-                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">SKU (Stock Keeping Unit)</label>
+                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">SKU</label>
                    <div className="flex gap-2">
                     <input 
                       type="text" 
-                      className="flex-1 rounded-2xl border-slate-200 py-3 px-6 text-sm font-bold placeholder:italic placeholder:font-normal" 
+                      className="flex-1 rounded-2xl border-slate-200 py-3 px-6 text-sm font-bold" 
                       value={editingProduct.sku} 
                       onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} 
-                      placeholder="Leave blank to auto-generate"
                     />
                     <button 
                       type="button" 
